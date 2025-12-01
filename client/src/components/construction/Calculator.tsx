@@ -1,12 +1,12 @@
-import { useState } from "react";
-import { Plus, Trash2, Info, Scissors, Hammer, Home } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, Trash2, Info, Scissors, Hammer, Home, GripVertical, BoxSelect } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
-import { Dimensions, Opening, Prices } from "@/lib/construction-types";
+import { Dimensions, Opening, Prices, WallElement } from "@/lib/construction-types";
 import { calculateMaterials } from "@/lib/calculations";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -15,6 +15,7 @@ import ScenePreview from "./ScenePreview";
 import { useToast } from "@/hooks/use-toast";
 import { nanoid } from "nanoid";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 
 export default function ConstructionCalculator() {
   const { toast } = useToast();
@@ -26,8 +27,8 @@ export default function ConstructionCalculator() {
     height: 8,
     studLength: 8,
     beamLength: 8,
-    roofPitch: 6, // 6/12 pitch default
-    overhang: 12 // 12 inch overhang
+    roofPitch: 6, 
+    overhang: 12 
   });
 
   const [prices, setPrices] = useState<Prices>({
@@ -35,501 +36,404 @@ export default function ConstructionCalculator() {
     beam: 12.98,
     sheetrock: 15.98,
     plywood: 32.50,
-    shingleSquare: 35.00, // Per bundle approx
-    concrete: 150.00 // Per Yard
+    shingleSquare: 35.00,
+    concrete: 150.00
   });
 
+  const [walls, setWalls] = useState<WallElement[]>([]);
   const [openings, setOpenings] = useState<Opening[]>([]);
-  const [activeTab, setActiveTab] = useState<'calculator' | 'preview' | 'cutlist'>('calculator');
+  
+  const [activeTab, setActiveTab] = useState<'calculator' | 'preview' | 'cutlist'>('preview'); // Default to preview for "Builder" feel
+  const [selectedWallId, setSelectedWallId] = useState<string | null>(null);
+  const [toolMode, setToolMode] = useState<'select' | 'add_wall' | 'add_window' | 'add_door'>('select');
 
-  // Opening Form State
-  const [newOpening, setNewOpening] = useState<Omit<Opening, 'id'>>({
-    type: 'window',
-    wall: 'front',
-    position: 5,
-    width: 3,
-    height: 4,
-    floorHeight: 3
-  });
+  // --- Initialization ---
+  useEffect(() => {
+      // Initialize Default 4 Walls based on dimensions
+      // This runs once on mount, or we could sync it?
+      // If user changes Dimensions L/W, we should update Exterior Walls?
+      // Let's keep it simple: When dims change, update exterior walls.
+      updateExteriorWalls(dimensions);
+  }, []); // Run once. 
+  
+  // Wait, if I change dimensions input, I need to update walls.
+  // Better to have a function that generates them or updates them.
+  
+  const updateExteriorWalls = (dims: Dimensions) => {
+      setWalls(prev => {
+          // Filter out old exterior walls
+          const interiors = prev.filter(w => w.type === 'interior');
+          
+          const wallThickness = 3.5/12; // Approximation for positioning
+          
+          const front: WallElement = {
+              id: 'wall-front', type: 'exterior', name: 'Front Wall',
+              length: dims.length, height: dims.height,
+              position: { x: 0, y: 0, z: dims.width/2 }, rotation: 0, isLocked: true
+          };
+          const back: WallElement = {
+              id: 'wall-back', type: 'exterior', name: 'Back Wall',
+              length: dims.length, height: dims.height,
+              position: { x: 0, y: 0, z: -dims.width/2 }, rotation: 0, isLocked: true
+          };
+          const right: WallElement = {
+              id: 'wall-right', type: 'exterior', name: 'Right Wall',
+              length: dims.width, height: dims.height,
+              position: { x: dims.length/2, y: 0, z: 0 }, rotation: Math.PI/2, isLocked: true
+          };
+          const left: WallElement = {
+              id: 'wall-left', type: 'exterior', name: 'Left Wall',
+              length: dims.width, height: dims.height,
+              position: { x: -dims.length/2, y: 0, z: 0 }, rotation: Math.PI/2, isLocked: true
+          };
+          
+          return [...interiors, front, back, right, left];
+      });
+  };
+
+  // Sync dimensions changes
+  useEffect(() => {
+      updateExteriorWalls(dimensions);
+  }, [dimensions.length, dimensions.width, dimensions.height]);
+
 
   // --- Handlers ---
 
-  const handleAddOpening = () => {
-    const id = nanoid();
-    setOpenings([...openings, { ...newOpening, id }]);
-    toast({
-      title: "Opening Added",
-      description: `Added ${newOpening.type} to ${newOpening.wall} wall.`,
-    });
+  const handleAddInteriorWall = () => {
+      const newWall: WallElement = {
+          id: nanoid(),
+          type: 'interior',
+          name: `Interior Wall ${walls.filter(w => w.type === 'interior').length + 1}`,
+          length: 10,
+          height: dimensions.height,
+          position: { x: 0, y: 0, z: 0 },
+          rotation: 0
+      };
+      setWalls([...walls, newWall]);
+      setSelectedWallId(newWall.id);
+      toast({ title: "Wall Added", description: "New interior wall created." });
   };
 
-  const handleRemoveOpening = (id: string) => {
-    setOpenings(openings.filter(o => o.id !== id));
+  const handleAddOpening = (type: 'window' | 'door') => {
+      if (!selectedWallId) {
+          toast({ variant: "destructive", title: "No Wall Selected", description: "Please select a wall to add an opening." });
+          return;
+      }
+      
+      const newOp: Opening = {
+          id: nanoid(),
+          type,
+          wallId: selectedWallId,
+          position: 4, // Default
+          width: type === 'window' ? 3 : 3,
+          height: type === 'window' ? 4 : 6.6, // Door standard 6'8" roughly
+          floorHeight: type === 'window' ? 3 : 0
+      };
+      
+      setOpenings([...openings, newOp]);
+      toast({ title: "Opening Added", description: `Added ${type} to selected wall.` });
+  };
+  
+  const updateWall = (id: string, updates: Partial<WallElement>) => {
+      setWalls(walls.map(w => w.id === id ? { ...w, ...updates } : w));
+  };
+  
+  const updateOpening = (id: string, updates: Partial<Opening>) => {
+      setOpenings(openings.map(o => o.id === id ? { ...o, ...updates } : o));
   };
 
-  const results = calculateMaterials(dimensions, prices, openings);
-
-  // Helper to format inches to feet-inches
-  const formatLength = (inches: number) => {
-    const ft = Math.floor(inches / 12);
-    const inRem = inches % 12;
-    if (ft > 0) return `${ft}' ${inRem.toFixed(1)}"${inches !== ft*12 + inRem ? ` (${inches.toFixed(1)}")` : ''}`;
-    return `${inches.toFixed(1)}"`;
-  };
+  const results = calculateMaterials(dimensions, prices, walls, openings);
 
   // --- Render ---
 
+  const selectedWall = walls.find(w => w.id === selectedWallId);
+
   return (
-    <div className="min-h-screen bg-background text-foreground p-4 md:p-8 flex flex-col gap-6">
+    <div className="h-screen bg-background text-foreground flex flex-col overflow-hidden">
       
-      <header className="flex flex-col md:flex-row justify-between items-center gap-4 mb-2">
-        <div>
-          <h1 className="text-3xl md:text-4xl font-display font-bold text-primary tracking-tight">
-            METATIMS <span className="text-foreground font-light">CALCULATOR</span>
-          </h1>
-          <p className="text-muted-foreground text-sm font-medium tracking-widest uppercase">
-            Construction Material Estimator & 3D Visualization
-          </p>
-        </div>
-        
-        <div className="flex gap-2 bg-muted p-1 rounded-lg">
-          <Button 
-            variant={activeTab === 'calculator' ? 'default' : 'ghost'} 
-            onClick={() => setActiveTab('calculator')}
-            className="w-24 md:w-32"
-          >
-            Calculator
-          </Button>
-          <Button 
-            variant={activeTab === 'cutlist' ? 'default' : 'ghost'} 
-            onClick={() => setActiveTab('cutlist')}
-            className="w-24 md:w-32"
-          >
-            Cut List
-          </Button>
-          <Button 
-            variant={activeTab === 'preview' ? 'default' : 'ghost'} 
-            onClick={() => setActiveTab('preview')}
-            className="w-24 md:w-32"
-          >
-            3D Preview
-          </Button>
-        </div>
+      {/* Top Bar */}
+      <header className="flex-none h-16 border-b border-border/40 bg-muted/10 flex items-center justify-between px-6">
+         <div className="flex items-center gap-3">
+            <Hammer className="w-6 h-6 text-primary" />
+            <h1 className="text-xl font-display font-bold tracking-tight">METATIMS <span className="font-light opacity-70">BUILDER</span></h1>
+         </div>
+         
+         <div className="flex gap-2">
+            <Button size="sm" variant={activeTab === 'preview' ? 'default' : 'ghost'} onClick={() => setActiveTab('preview')}>Builder 3D</Button>
+            <Button size="sm" variant={activeTab === 'cutlist' ? 'default' : 'ghost'} onClick={() => setActiveTab('cutlist')}>Cut List</Button>
+            <Button size="sm" variant={activeTab === 'calculator' ? 'default' : 'ghost'} onClick={() => setActiveTab('calculator')}>Estimate</Button>
+         </div>
       </header>
 
-      <main className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1">
-        
-        {/* --- Left Panel: Controls & Inputs --- */}
-        <div className="lg:col-span-4 flex flex-col gap-6 h-full overflow-visible">
+      <div className="flex-1 flex overflow-hidden">
           
-          {/* Room Dimensions */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-display uppercase tracking-wider text-accent flex items-center gap-2">
-                <Hammer className="w-4 h-4" /> Structure
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="length">Length (ft)</Label>
-                  <Input 
-                    id="length" 
-                    type="number" 
-                    value={dimensions.length} 
-                    onChange={(e) => setDimensions({...dimensions, length: parseFloat(e.target.value) || 0})} 
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="width">Width (ft)</Label>
-                  <Input 
-                    id="width" 
-                    type="number" 
-                    value={dimensions.width} 
-                    onChange={(e) => setDimensions({...dimensions, width: parseFloat(e.target.value) || 0})} 
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="height">Height (ft)</Label>
-                <div className="flex items-center gap-4">
-                  <Slider 
-                    value={[dimensions.height]} 
-                    min={6} 
-                    max={20} 
-                    step={0.5} 
-                    onValueChange={(vals) => setDimensions({...dimensions, height: vals[0]})}
-                    className="flex-1"
-                  />
-                  <Input 
-                    id="height" 
-                    type="number" 
-                    className="w-20"
-                    value={dimensions.height} 
-                    onChange={(e) => setDimensions({...dimensions, height: parseFloat(e.target.value) || 0})} 
-                  />
-                </div>
-              </div>
+          {/* Left Sidebar: Toolbox & Outliner */}
+          <div className="w-80 flex-none border-r border-border/40 bg-muted/5 flex flex-col">
               
-              <Separator />
-              
-              <div className="space-y-2">
-                 <Label className="text-xs font-semibold text-muted-foreground uppercase">Roof Config</Label>
-                 <div className="grid grid-cols-2 gap-4">
-                   <div className="space-y-1">
-                     <Label className="text-[10px]">Pitch (x/12)</Label>
-                     <Input 
-                        type="number" 
-                        min={0}
-                        max={18}
-                        value={dimensions.roofPitch} 
-                        onChange={(e) => setDimensions({...dimensions, roofPitch: parseFloat(e.target.value) || 0})}
-                     />
-                   </div>
-                   <div className="space-y-1">
-                     <Label className="text-[10px]">Overhang (in)</Label>
-                     <Input 
-                        type="number" 
-                        min={0}
-                        value={dimensions.overhang} 
-                        onChange={(e) => setDimensions({...dimensions, overhang: parseFloat(e.target.value) || 0})}
-                     />
-                   </div>
-                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Material Settings */}
-          <Card>
-             <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-display uppercase tracking-wider text-muted-foreground">Pricing & Config</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                   <Label className="text-xs">Stud Length (ft)</Label>
-                   <Input 
-                      type="number" 
-                      value={dimensions.studLength} 
-                      onChange={(e) => setDimensions({...dimensions, studLength: parseFloat(e.target.value) || 0})}
-                   />
-                </div>
-                <div className="space-y-2">
-                   <Label className="text-xs">Beam Length (ft)</Label>
-                   <Input 
-                      type="number" 
-                      value={dimensions.beamLength} 
-                      onChange={(e) => setDimensions({...dimensions, beamLength: parseFloat(e.target.value) || 0})}
-                   />
-                </div>
-              </div>
-              
-              <Separator />
-              
-              <div className="grid grid-cols-3 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-[10px] text-muted-foreground">2x4 Price</Label>
-                  <Input className="h-8 text-sm" type="number" value={prices.stud} onChange={(e) => setPrices({...prices, stud: parseFloat(e.target.value) || 0})} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-[10px] text-muted-foreground">2x6 Price</Label>
-                  <Input className="h-8 text-sm" type="number" value={prices.beam} onChange={(e) => setPrices({...prices, beam: parseFloat(e.target.value) || 0})} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-[10px] text-muted-foreground">Sheetrock</Label>
-                  <Input className="h-8 text-sm" type="number" value={prices.sheetrock} onChange={(e) => setPrices({...prices, sheetrock: parseFloat(e.target.value) || 0})} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-[10px] text-muted-foreground">Plywood</Label>
-                  <Input className="h-8 text-sm" type="number" value={prices.plywood} onChange={(e) => setPrices({...prices, plywood: parseFloat(e.target.value) || 0})} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-[10px] text-muted-foreground">Shingle Bndl</Label>
-                  <Input className="h-8 text-sm" type="number" value={prices.shingleSquare} onChange={(e) => setPrices({...prices, shingleSquare: parseFloat(e.target.value) || 0})} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-[10px] text-muted-foreground">Concrete Yd</Label>
-                  <Input className="h-8 text-sm" type="number" value={prices.concrete} onChange={(e) => setPrices({...prices, concrete: parseFloat(e.target.value) || 0})} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Opening Manager */}
-          <Card className="flex-1 flex flex-col">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-display uppercase tracking-wider text-accent flex items-center gap-2">
-                 <Home className="w-4 h-4" /> Openings
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 flex-1 flex flex-col">
-              {/* ... existing inputs ... */}
-               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Type</Label>
-                  <Select 
-                    value={newOpening.type} 
-                    onValueChange={(v: any) => setNewOpening({...newOpening, type: v})}
+              {/* Tools */}
+              <div className="p-4 grid grid-cols-2 gap-2 border-b border-border/40">
+                  <Button 
+                    variant={toolMode === 'select' ? 'secondary' : 'outline'} 
+                    className="justify-start gap-2"
+                    onClick={() => setToolMode('select')}
                   >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="window">Window</SelectItem>
-                      <SelectItem value="door">Door</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Wall</Label>
-                  <Select 
-                    value={newOpening.wall} 
-                    onValueChange={(v: any) => setNewOpening({...newOpening, wall: v})}
+                    <BoxSelect className="w-4 h-4" /> Select
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    className="justify-start gap-2"
+                    onClick={handleAddInteriorWall}
                   >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="front">Front (Z+)</SelectItem>
-                      <SelectItem value="right">Right (X+)</SelectItem>
-                      <SelectItem value="back">Back (Z-)</SelectItem>
-                      <SelectItem value="left">Left (X-)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Pos (ft)</Label>
-                  <Input 
-                    type="number" 
-                    value={newOpening.position}
-                    onChange={(e) => setNewOpening({...newOpening, position: parseFloat(e.target.value) || 0})}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Width (ft)</Label>
-                  <Input 
-                    type="number" 
-                    value={newOpening.width}
-                    onChange={(e) => setNewOpening({...newOpening, width: parseFloat(e.target.value) || 0})}
-                  />
-                </div>
+                    <Plus className="w-4 h-4" /> New Wall
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    className="justify-start gap-2"
+                    onClick={() => handleAddOpening('window')}
+                    disabled={!selectedWallId}
+                  >
+                    <Plus className="w-4 h-4" /> Window
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    className="justify-start gap-2"
+                    onClick={() => handleAddOpening('door')}
+                    disabled={!selectedWallId}
+                  >
+                    <Plus className="w-4 h-4" /> Door
+                  </Button>
               </div>
               
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Height (ft)</Label>
-                  <Input 
-                    type="number" 
-                    value={newOpening.height}
-                    onChange={(e) => setNewOpening({...newOpening, height: parseFloat(e.target.value) || 0})}
-                  />
-                </div>
-                <div className="space-y-2">
-                   <Label>Floor Ht (ft)</Label>
-                   <Input 
-                    type="number" 
-                    value={newOpening.floorHeight}
-                    onChange={(e) => setNewOpening({...newOpening, floorHeight: parseFloat(e.target.value) || 0})}
-                  />
-                </div>
-              </div>
-
-              <Button onClick={handleAddOpening} className="w-full gap-2">
-                <Plus className="w-4 h-4" /> Add Opening
-              </Button>
-
-              <Separator className="my-2" />
-
-              <ScrollArea className="flex-1 h-[120px]">
-                <div className="space-y-2 pr-4">
-                  {openings.length === 0 && (
-                    <div className="text-sm text-muted-foreground text-center py-4 italic">No openings added yet.</div>
-                  )}
-                  {openings.map(op => (
-                    <div key={op.id} className="flex items-center justify-between bg-muted/50 p-2 rounded border border-border/50">
-                      <div className="text-sm">
-                        <span className="font-semibold capitalize text-foreground">{op.type}</span>
-                        <span className="mx-2 text-muted-foreground">•</span>
-                        <span className="capitalize text-xs text-muted-foreground">{op.wall} Wall</span>
+              {/* Structure Tree */}
+              <ScrollArea className="flex-1">
+                  <div className="p-4 space-y-4">
+                      
+                      {/* Global Settings */}
+                      <div className="space-y-2">
+                          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Global Structure</h3>
+                          <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1">
+                                  <Label className="text-[10px]">Length</Label>
+                                  <Input type="number" value={dimensions.length} onChange={e => setDimensions({...dimensions, length: +e.target.value})} className="h-7 text-xs" />
+                              </div>
+                              <div className="space-y-1">
+                                  <Label className="text-[10px]">Width</Label>
+                                  <Input type="number" value={dimensions.width} onChange={e => setDimensions({...dimensions, width: +e.target.value})} className="h-7 text-xs" />
+                              </div>
+                              <div className="space-y-1">
+                                  <Label className="text-[10px]">Pitch</Label>
+                                  <Input type="number" value={dimensions.roofPitch} onChange={e => setDimensions({...dimensions, roofPitch: +e.target.value})} className="h-7 text-xs" />
+                              </div>
+                              <div className="space-y-1">
+                                  <Label className="text-[10px]">Overhang</Label>
+                                  <Input type="number" value={dimensions.overhang} onChange={e => setDimensions({...dimensions, overhang: +e.target.value})} className="h-7 text-xs" />
+                              </div>
+                          </div>
                       </div>
-                      <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive hover:text-destructive/90" onClick={() => handleRemoveOpening(op.id)}>
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
+                      
+                      <Separator />
+                      
+                      {/* Wall List */}
+                      <div className="space-y-2">
+                          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Walls</h3>
+                          <div className="space-y-1">
+                              {walls.map(wall => (
+                                  <div 
+                                    key={wall.id}
+                                    onClick={() => setSelectedWallId(wall.id)}
+                                    className={`
+                                        flex items-center justify-between p-2 rounded cursor-pointer text-sm border transition-colors
+                                        ${selectedWallId === wall.id ? 'bg-primary/10 border-primary text-primary' : 'bg-card border-transparent hover:bg-muted'}
+                                    `}
+                                  >
+                                      <div className="flex items-center gap-2">
+                                          <GripVertical className="w-3 h-3 opacity-50" />
+                                          <span className="truncate max-w-[140px]">{wall.name}</span>
+                                      </div>
+                                      {wall.type === 'interior' && (
+                                          <Trash2 
+                                            className="w-3 h-3 text-muted-foreground hover:text-destructive" 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setWalls(walls.filter(w => w.id !== wall.id));
+                                                if (selectedWallId === wall.id) setSelectedWallId(null);
+                                            }}
+                                          />
+                                      )}
+                                  </div>
+                              ))}
+                          </div>
+                      </div>
+
+                  </div>
               </ScrollArea>
-
-            </CardContent>
-          </Card>
-
-        </div>
-
-        {/* --- Right Panel: Results or Preview --- */}
-        <div className="lg:col-span-8 flex flex-col h-full">
+          </div>
           
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="h-full flex flex-col">
-            <TabsContent value="calculator" className="h-full mt-0">
-               <Card className="h-full border-primary/20 shadow-lg shadow-primary/5">
-                  <CardHeader className="border-b border-border/50 bg-muted/20">
-                    <CardTitle className="flex items-center gap-2">
-                      <Info className="w-5 h-5 text-primary" />
-                      Construction Estimate
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-6 lg:p-10 space-y-8 overflow-y-auto h-[calc(100vh-200px)]">
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      {/* Material Counts */}
-                      <div className="space-y-6">
-                        <h3 className="text-lg font-display font-semibold text-foreground border-b border-primary/50 pb-2 inline-block mb-2">Material Breakdown</h3>
-                        
-                        <div className="space-y-3">
-                          <div className="flex justify-between items-center p-3 bg-muted/30 rounded hover:bg-muted/50 transition-colors">
-                             <span className="font-medium">2x4 Lumber</span>
-                             <div className="text-right">
-                               <div className="text-xl font-bold text-primary">{results.total2x4Pieces}</div>
-                               <div className="text-xs text-muted-foreground">Studs, Plates</div>
-                             </div>
+          {/* Main Content */}
+          <div className="flex-1 flex flex-col relative bg-black/5">
+              
+              {/* 3D View (Always rendered if preview tab, or hidden if others to keep state?) */}
+              {/* Actually, we can just switch views. */}
+              
+              {activeTab === 'preview' && (
+                  <div className="flex-1 relative">
+                      <ScenePreview dimensions={dimensions} walls={walls} openings={openings} />
+                      
+                      {/* Inspector Overlay (Right Side) */}
+                      {selectedWall && (
+                          <div className="absolute top-4 right-4 w-72 bg-card/95 backdrop-blur border border-border/50 rounded-lg shadow-xl p-4 flex flex-col gap-4">
+                              <div className="flex justify-between items-center pb-2 border-b">
+                                  <span className="font-semibold text-sm">{selectedWall.name} Properties</span>
+                                  <Badge variant="outline" className="text-[10px] uppercase">{selectedWall.type}</Badge>
+                              </div>
+                              
+                              {selectedWall.type === 'interior' && (
+                                  <div className="space-y-3">
+                                      <div className="space-y-1">
+                                          <Label className="text-xs">Length (ft)</Label>
+                                          <Input 
+                                            type="number" 
+                                            value={selectedWall.length} 
+                                            onChange={e => updateWall(selectedWall.id, { length: +e.target.value })} 
+                                            className="h-8"
+                                          />
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-2">
+                                          <div className="space-y-1">
+                                              <Label className="text-xs">Pos X</Label>
+                                              <Input 
+                                                type="number" 
+                                                value={selectedWall.position.x} 
+                                                onChange={e => updateWall(selectedWall.id, { position: { ...selectedWall.position, x: +e.target.value } })} 
+                                                className="h-8"
+                                              />
+                                          </div>
+                                          <div className="space-y-1">
+                                              <Label className="text-xs">Pos Z</Label>
+                                              <Input 
+                                                type="number" 
+                                                value={selectedWall.position.z} 
+                                                onChange={e => updateWall(selectedWall.id, { position: { ...selectedWall.position, z: +e.target.value } })} 
+                                                className="h-8"
+                                              />
+                                          </div>
+                                      </div>
+                                      <div className="space-y-1">
+                                          <Label className="text-xs">Rotation (rad)</Label>
+                                          <div className="flex gap-2">
+                                              <Slider 
+                                                min={0} max={Math.PI * 2} step={0.1} 
+                                                value={[selectedWall.rotation]} 
+                                                onValueChange={([v]) => updateWall(selectedWall.id, { rotation: v })}
+                                                className="flex-1"
+                                              />
+                                              <span className="text-xs w-8 text-right">{(selectedWall.rotation * 180 / Math.PI).toFixed(0)}°</span>
+                                          </div>
+                                      </div>
+                                  </div>
+                              )}
+                              
+                              <div className="space-y-2">
+                                  <Label className="text-xs font-semibold text-muted-foreground">Openings on Wall</Label>
+                                  <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                                      {openings.filter(o => o.wallId === selectedWall.id).map(op => (
+                                          <div key={op.id} className="bg-muted/50 p-2 rounded border border-border/20 space-y-2">
+                                              <div className="flex justify-between items-center">
+                                                  <span className="text-xs font-medium capitalize">{op.type}</span>
+                                                  <Trash2 className="w-3 h-3 cursor-pointer hover:text-destructive" onClick={() => setOpenings(openings.filter(x => x.id !== op.id))} />
+                                              </div>
+                                              <div className="grid grid-cols-2 gap-2">
+                                                  <div className="space-y-1">
+                                                      <Label className="text-[9px]">Pos</Label>
+                                                      <Input className="h-6 text-[10px] px-1" type="number" value={op.position} onChange={e => updateOpening(op.id, { position: +e.target.value })} />
+                                                  </div>
+                                                  <div className="space-y-1">
+                                                      <Label className="text-[9px]">Width</Label>
+                                                      <Input className="h-6 text-[10px] px-1" type="number" value={op.width} onChange={e => updateOpening(op.id, { width: +e.target.value })} />
+                                                  </div>
+                                              </div>
+                                          </div>
+                                      ))}
+                                      {openings.filter(o => o.wallId === selectedWall.id).length === 0 && (
+                                          <div className="text-xs text-muted-foreground italic text-center py-2">No openings</div>
+                                      )}
+                                  </div>
+                              </div>
+
                           </div>
+                      )}
+                  </div>
+              )}
 
-                          <div className="flex justify-between items-center p-3 bg-muted/30 rounded hover:bg-muted/50 transition-colors">
-                             <span className="font-medium">2x6 Lumber</span>
-                             <div className="text-right">
-                               <div className="text-xl font-bold text-primary">{results.total2x6Pieces}</div>
-                               <div className="text-xs text-muted-foreground">Headers, Joists, Rafters</div>
-                             </div>
-                          </div>
+              {activeTab === 'cutlist' && (
+                  <div className="flex-1 p-8 overflow-auto bg-background">
+                      <Card>
+                          <CardHeader>
+                              <CardTitle>Cut List</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <Table>
+                                <TableHeader>
+                                <TableRow>
+                                    <TableHead>Material</TableHead>
+                                    <TableHead>Description</TableHead>
+                                    <TableHead className="text-right">Length</TableHead>
+                                    <TableHead className="text-right">Count</TableHead>
+                                </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                {results.cutList.map((item, i) => (
+                                    <TableRow key={i}>
+                                    <TableCell className="font-medium text-primary">{item.material}</TableCell>
+                                    <TableCell>{item.description}</TableCell>
+                                    <TableCell className="text-right font-mono">{Math.floor(item.length/12)}' {(item.length%12).toFixed(1)}"</TableCell>
+                                    <TableCell className="text-right">{item.count}</TableCell>
+                                    </TableRow>
+                                ))}
+                                </TableBody>
+                            </Table>
+                          </CardContent>
+                      </Card>
+                  </div>
+              )}
+              
+              {activeTab === 'calculator' && (
+                   <div className="flex-1 p-8 overflow-auto bg-background">
+                      <Card className="max-w-3xl mx-auto">
+                          <CardHeader>
+                              <CardTitle>Estimate Summary</CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-6">
+                              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                  <div className="p-4 bg-muted rounded">
+                                      <div className="text-2xl font-bold">{results.total2x4Pieces}</div>
+                                      <div className="text-xs text-muted-foreground">2x4 Pieces</div>
+                                  </div>
+                                  <div className="p-4 bg-muted rounded">
+                                      <div className="text-2xl font-bold">{results.total2x6Pieces}</div>
+                                      <div className="text-xs text-muted-foreground">2x6 Pieces</div>
+                                  </div>
+                                  <div className="p-4 bg-muted rounded">
+                                      <div className="text-2xl font-bold">{results.shingleBundles}</div>
+                                      <div className="text-xs text-muted-foreground">Shingle Bundles</div>
+                                  </div>
+                              </div>
+                              <Separator />
+                              <div className="flex justify-between items-end">
+                                  <div>
+                                      <div className="text-sm text-muted-foreground">Total Estimated Cost</div>
+                                      <div className="text-xs text-muted-foreground italic">Excluding Tax & Labor</div>
+                                  </div>
+                                  <div className="text-4xl font-bold text-primary">${results.totalCost.toFixed(2)}</div>
+                              </div>
+                          </CardContent>
+                      </Card>
+                   </div>
+              )}
 
-                          <div className="flex justify-between items-center p-3 bg-muted/30 rounded hover:bg-muted/50 transition-colors">
-                             <span className="font-medium">Sheetrock (4x8)</span>
-                             <div className="text-right">
-                               <div className="text-xl font-bold text-primary">{results.sheetrockPieces}</div>
-                               <div className="text-xs text-muted-foreground">Panels</div>
-                             </div>
-                          </div>
+          </div>
 
-                          <div className="flex justify-between items-center p-3 bg-muted/30 rounded hover:bg-muted/50 transition-colors">
-                             <span className="font-medium">Roof Sheathing</span>
-                             <div className="text-right">
-                               <div className="text-xl font-bold text-primary">{results.plywoodPieces}</div>
-                               <div className="text-xs text-muted-foreground">4x8 Sheets</div>
-                             </div>
-                          </div>
-
-                          <div className="flex justify-between items-center p-3 bg-muted/30 rounded hover:bg-muted/50 transition-colors">
-                             <span className="font-medium">Roof Shingles</span>
-                             <div className="text-right">
-                               <div className="text-xl font-bold text-primary">{results.shingleBundles}</div>
-                               <div className="text-xs text-muted-foreground">Bundles</div>
-                             </div>
-                          </div>
-
-                          <div className="flex justify-between items-center p-3 bg-muted/30 rounded hover:bg-muted/50 transition-colors">
-                             <span className="font-medium">Concrete</span>
-                             <div className="text-right">
-                               <div className="text-xl font-bold text-primary">{results.concreteYards}</div>
-                               <div className="text-xs text-muted-foreground">Cubic Yards</div>
-                             </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Stats */}
-                      <div className="space-y-6">
-                         <h3 className="text-lg font-display font-semibold text-foreground border-b border-primary/50 pb-2 inline-block mb-2">Dimensions & Cost</h3>
-                         <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-card border p-4 rounded text-center">
-                              <div className="text-xl font-display font-bold">{results.wallArea.toFixed(0)}</div>
-                              <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Wall SqFt</div>
-                            </div>
-                            <div className="bg-card border p-4 rounded text-center">
-                              <div className="text-xl font-display font-bold">{results.roofArea.toFixed(0)}</div>
-                              <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Roof SqFt</div>
-                            </div>
-                         </div>
-
-                         <div className="space-y-2 mt-4">
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Lumber:</span>
-                                <span>${(results.cost2x4 + results.cost2x6).toFixed(2)}</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Concrete:</span>
-                                <span>${results.costConcrete.toFixed(2)}</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Roofing:</span>
-                                <span>${(results.costPlywood + results.costShingles).toFixed(2)}</span>
-                            </div>
-                            <Separator />
-                            <div className="flex justify-between font-bold text-primary pt-2">
-                                <span>Total Est:</span>
-                                <span>${results.totalCost.toFixed(2)}</span>
-                            </div>
-                         </div>
-                      </div>
-                    </div>
-
-                  </CardContent>
-               </Card>
-            </TabsContent>
-
-            <TabsContent value="cutlist" className="h-full mt-0">
-               <Card className="h-full border-primary/20 shadow-lg shadow-primary/5 flex flex-col">
-                  <CardHeader className="border-b border-border/50 bg-muted/20 flex-none">
-                    <CardTitle className="flex items-center gap-2">
-                      <Scissors className="w-5 h-5 text-primary" />
-                      Cut List
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-0 flex-1 overflow-hidden">
-                    <ScrollArea className="h-full">
-                       <div className="p-6">
-                         {results.cutList.length === 0 ? (
-                           <div className="text-center text-muted-foreground p-8">No cut list items generated yet.</div>
-                         ) : (
-                           <Table>
-                             <TableHeader>
-                               <TableRow className="hover:bg-transparent">
-                                 <TableHead className="w-[100px]">Material</TableHead>
-                                 <TableHead>Description</TableHead>
-                                 <TableHead className="text-right">Length</TableHead>
-                                 <TableHead className="text-right">Count</TableHead>
-                               </TableRow>
-                             </TableHeader>
-                             <TableBody>
-                               {results.cutList.map((item, i) => (
-                                 <TableRow key={i}>
-                                   <TableCell className="font-medium text-primary">{item.material}</TableCell>
-                                   <TableCell>{item.description}</TableCell>
-                                   <TableCell className="text-right font-mono">{formatLength(item.length)}</TableCell>
-                                   <TableCell className="text-right">{item.count}</TableCell>
-                                 </TableRow>
-                               ))}
-                             </TableBody>
-                           </Table>
-                         )}
-                       </div>
-                    </ScrollArea>
-                  </CardContent>
-               </Card>
-            </TabsContent>
-
-            <TabsContent value="preview" className="h-full mt-0">
-              <div className="h-[500px] lg:h-full relative">
-                <ScenePreview dimensions={dimensions} openings={openings} />
-              </div>
-            </TabsContent>
-          </Tabs>
-
-        </div>
-
-      </main>
+      </div>
     </div>
   );
 }
