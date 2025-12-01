@@ -26,6 +26,13 @@ export interface Opening {
   floorHeight: number;
 }
 
+export interface CutItem {
+  material: string;
+  description: string;
+  length: number; // in inches usually, or feet for some
+  count: number;
+}
+
 export const COLORS: Record<LumberType, string> = {
   stud: '#D2B48C',
   beam: '#8B4513',
