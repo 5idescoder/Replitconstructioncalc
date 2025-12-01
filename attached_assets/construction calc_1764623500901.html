@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MetaTims Construction Calculator Rev 4</title>
+  <script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/"
+      }
+    }
+  </script>
+  <style>
+    /* ------------------------------------------------------------------- */
+    /* --- CSS STYLING FOR MOBILE-FIRST, DARK THEME LAYOUT --- */
+    /* ------------------------------------------------------------------- */
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #2b1717 0%, #1a0f0f 50%, #8b0000 100%);
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    .calculator {
+      background: #1a1a1a;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      color: #e5e7eb;
+      border: 1px solid rgba(139, 0, 0, 0.2);
+      overflow: hidden;
+    }
+
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid rgba(139, 0, 0, 0.2);
+    }
+
+    .tab {
+      flex: 1;
+      padding: 1rem;
+      text-align: center;
+      cursor: pointer;
+      color: #9ca3af;
+      transition: all 0.3s ease;
+    }
+
+    .tab:hover {
+      color: #e5e7eb;
+    }
+
+    .tab.active {
+      border-bottom: 2px solid #8b0000;
+      color: #dc2626;
+    }
+
+    .tab-content {
+      display: none;
+      padding: 2rem;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .title {
+      font-size: 2rem;
+      font-weight: bold;
+      margin-bottom: 1.5rem;
+      text-align: center;
+      color: #e5e7eb;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .section-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin: 1.5rem 0 1rem;
+      color: #dc2626;
+    }
+
+    .input-group {
+      margin-bottom: 1rem;
+    }
+
+    .input-row {
+      display: flex;
+      flex-direction: column; /* Stack vertically on small screens */
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    @media (min-width: 600px) {
+        .input-row {
+            flex-direction: row; /* Layout horizontally on larger screens */
+        }
+    }
+
+    .input-row .input-group {
+      flex: 1;
+      margin-bottom: 0;
+    }
+
+    .label {
+      display: block;
+      font-size: 0.875rem;
+      margin-bottom: 0.5rem;
+      color: #e5e7eb;
+    }
+
+    .input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #4b5563;
+      border-radius: 0.5rem;
+      background: #374151;
+      color: #e5e7eb;
+      transition: all 0.3s ease;
+    }
+
+    .input:focus {
+      outline: none;
+      border-color: #8b0000;
+      box-shadow: 0 0 0 2px rgba(139, 0, 0, 0.2);
+    }
+
+    .button {
+      width: 100%;
+      padding: 0.875rem;
+      background: #8b0000;
+      color: #e5e7eb;
+      border: none;
+      border-radius: 0.5rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-top: 1.5rem;
+    }
+
+    .button:hover {
+      background: #a52a2a;
+    }
+
+    .results {
+      margin-top: 2rem;
+      padding: 1.5rem;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 0.5rem;
+      display: none;
+    }
+
+    .results.active {
+      display: block;
+    }
+
+    .results-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #dc2626;
+      margin-bottom: 1rem;
+    }
+
+    .results-item {
+      margin-bottom: 1rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid rgba(139, 0, 0, 0.2);
+    }
+
+    .results-item:last-child {
+      border-bottom: none;
+    }
+
+    .total-cost {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #dc2626;
+      margin-top: 1rem;
+    }
+
+    /* --- Preview Layout Adjustments --- */
+    .preview-layout {
+      display: flex;
+      flex-direction: column; /* Default stack on mobile */
+      gap: 2rem;
+    }
+
+    @media (min-width: 900px) {
+      .preview-layout {
+        flex-direction: row; /* Side-by-side on desktop */
+      }
+    }
+
+    .preview-controls-panel {
+      /* Restrict width on desktop for the controls */
+      flex: 0 0 300px; /* Fixed width for controls panel */
+      padding: 1rem;
+      background: #252525;
+      border-radius: 8px;
+    }
+
+    #preview-container {
+      flex: 1; /* Takes up remaining space */
+      /* Crucial: Set a base height for the container */
+      min-height: 400px; 
+      height: 600px;
+      background: #1a1a1a;
+      border-radius: 0.5rem;
+      overflow: hidden;
+    }
+    /* --- End Preview Layout Adjustments --- */
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block; /* Important to remove any inline spacing */
+    }
+
+    .opening-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .opening-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    
+    @media (min-width: 600px) {
+        .opening-row {
+            flex-direction: row;
+        }
+    }
+
+    .btn-add {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: #22543d;
+      color: #e5e7eb;
+      border: none;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-top: 1rem;
+    }
+
+    .btn-add:hover {
+      background: #2f6b4e;
+    }
+
+    .btn-remove {
+      padding: 0.25rem 0.5rem;
+      background: #9b2c2c;
+      color: #e5e7eb;
+      border: none;
+      border-radius: 0.25rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.75rem;
+    }
+
+    .btn-remove:hover {
+      background: #c53030;
+    }
+
+    .openings-list {
+      margin-top: 1rem;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .opening-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 0.25rem;
+      margin-bottom: 0.5rem;
+      font-size: 0.875rem;
+    }
+
+    .opening-item:last-child {
+      margin-bottom: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="calculator">
+      <div class="tabs">
+        <div class="tab active" data-tab="calculator">Calculator</div>
+        <div class="tab" data-tab="preview">3D Preview</div>
+      </div>
+
+      <div id="calculator" class="tab-content active">
+        <h1 class="title">MetaTims Construction Calculator</h1>
+        
+        <div class="section-title">Room Dimensions</div>
+        <div class="input-row">
+          <div class="input-group">
+            <label class="label" for="length">Length (feet)</label>
+            <input type="number" id="length" class="input" value="20" />
+          </div>
+          <div class="input-group">
+            <label class="label" for="width">Width (feet)</label>
+            <input type="number" id="width" class="input" value="20" />
+          </div>
+          <div class="input-group">
+            <label class="label" for="height">Height (feet)</label>
+            <input type="number" id="height" class="input" value="8" />
+          </div>
+        </div>
+
+        <div class="section-title">Material Lengths</div>
+        <div class="input-row">
+          <div class="input-group">
+            <label class="label" for="studLength">2×4 Stud/Plate Length (feet)</label>
+            <input type="number" id="studLength" class="input" value="8" step="0.5" />
+          </div>
+          <div class="input-group">
+            <label class="label" for="beamLength">2×6 Beam/Joist Length (feet)</label>
+            <input type="number" id="beamLength" class="input" value="8" step="0.5" />
+          </div>
+        </div>
+
+        <div class="section-title">Material Prices ($ per piece)</div>
+        <div class="input-row">
+          <div class="input-group">
+            <label class="label" for="studPrice">2×4 Price (Studs & Plates)</label>
+            <input type="number" id="studPrice" class="input" value="3.98" step="0.01" />
+          </div>
+          <div class="input-group">
+            <label class="label" for="beamPrice">2×6 Price (Beams & Joists)</label>
+            <input type="number" id="beamPrice" class="input" value="12.98" step="0.01" />
+          </div>
+          <div class="input-group">
+            <label class="label" for="sheetrockPrice">Sheetrock Price</label>
+            <input type="number" id="sheetrockPrice" class="input" value="15.98" step="0.01" />
+          </div>
+        </div>
+
+        <button onclick="calculateMaterials()" class="button">Calculate Materials</button>
+
+        <div id="results" class="results">
+          <div class="results-title">Material Breakdown</div>
+          <div id="resultsList"></div>
+          <div id="totalCost" class="total-cost"></div>
+        </div>
+      </div>
+
+      <div id="preview" class="tab-content">
+        <div class="preview-layout">
+          
+          <!-- Control Panel for Openings -->
+          <div class="preview-controls-panel">
+            <div class="section-title" style="margin-top: 0;">Openings (Windows & Doors)</div>
+            <div class="input-row">
+              <div class="input-group">
+                <label class="label" for="openingType">Type</label>
+                <select type="text" id="openingType" class="input">
+                  <option value="window">Window</option>
+                  <option value="door">Door</option>
+                </select>
+              </div>
+              <div class="input-group">
+                <label class="label" for="openingWall">Wall</label>
+                <select id="openingWall" class="input">
+                  <option value="front">Front (Z+)</option>
+                  <option value="right">Right (X+)</option>
+                  <option value="back">Back (Z-)</option>
+                  <option value="left">Left (X-)</option>
+                </select>
+              </div>
+            </div>
+            <div class="input-row">
+              <div class="input-group">
+                <label class="label" for="openingPosition">Position from Left (ft)</label>
+                <input type="number" id="openingPosition" class="input" value="5" min="0" step="0.5" />
+              </div>
+              <div class="input-group">
+                <label class="label" for="openingWidth">Width (ft)</label>
+                <input type="number" id="openingWidth" class="input" value="3" min="1" max="8" step="0.5" />
+              </div>
+            </div>
+            <div class="input-row">
+              <div class="input-group">
+                <label class="label" for="openingHeight">Height (ft)</label>
+                <input type="number" id="openingHeight" class="input" value="4" min="1" max="8" step="0.5" />
+              </div>
+              <div class="input-group">
+                <label class="label" for="openingFloorHeight">Height from Floor (ft)</label>
+                <input type="number" id="openingFloorHeight" class="input" value="3" min="0" max="8" step="0.5" />
+              </div>
+            </div>
+            
+            <button id="btnAddOpening" class="btn-add">Add Opening</button>
+            
+            <div class="openings-list" id="openingsList"></div>
+          </div>
+          <!-- End Control Panel -->
+
+          <div id="preview-container"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    let scene, camera, renderer, controls;
+    let openings = [];
+    let isInitialized = false; 
+
+    // Expose functions globally for HTML access (buttons/event handlers)
+    window.openings = openings;
+    window.calculateMaterials = calculateMaterials; 
+    window.removeOpening = removeOpening; 
+
+    const COLORS = {
+      stud: new THREE.Color('#D2B48C'),    
+      beam: new THREE.Color('#8B4513'),    
+      plate: new THREE.Color('#DEB887'),   
+      joist: new THREE.Color('#A0522D'),   
+      header: new THREE.Color('#CD853F'),  
+      sill: new THREE.Color('#CD853F'),    
+      king: new THREE.Color('#B8860B'),    
+      cripple: new THREE.Color('#DAA520'), 
+      window: new THREE.Color('#87CEEB'),  
+      door: new THREE.Color('#8B4513')     
+    };
+
+    // Actual dimensions in inches
+    const LUMBER_DIMENSIONS = {
+      stud: { width: 1.5, height: 3.5 },   
+      beam: { width: 1.5, height: 5.5 },   
+      plate: { width: 1.5, height: 3.5 },  
+      joist: { width: 1.5, height: 5.5 },  
+      header: { width: 3.0, height: 5.5 }, 
+      sill: { width: 1.5, height: 3.5 }    
+    };
+
+    function init() {
+      const container = document.getElementById('preview-container');
+      
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color('#1a1a1a');
+
+      // Use bounding rect for the most accurate size after display is set to block
+      const rect = container.getBoundingClientRect();
+      const width = rect.width;
+      const height = rect.height;
+
+      camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
+      camera.position.set(30, 20, 30);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(width, height);
+      
+      // Clear container and append new canvas
+      container.innerHTML = '';
+      container.appendChild(renderer.domElement);
+      renderer.domElement.style.width = '100%';
+      renderer.domElement.style.height = '100%';
+
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+
+      // Lighting
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+      scene.add(ambientLight);
+
+      const directionalLight1 = new THREE.DirectionalLight(0xffffff, 1);
+      directionalLight1.position.set(10, 10, 5);
+      scene.add(directionalLight1);
+
+      const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
+      directionalLight2.position.set(-10, -10, -5);
+      scene.add(directionalLight2);
+
+      window.addEventListener('resize', onWindowResize, false);
+      animate();
+      updatePreview();
+    }
+
+    function createLumber(position, rotation, dimensions, type) {
+      const geometry = new THREE.BoxGeometry(dimensions.x, dimensions.y, dimensions.z);
+      const material = new THREE.MeshStandardMaterial({
+        color: COLORS[type],
+        roughness: 0.8,
+        metalness: 0.1
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.copy(position);
+      mesh.rotation.setFromVector3(rotation);
+      return mesh;
+    }
+
+    function createOpeningFrame(opening, wallData) {
+      const group = new THREE.Group();
+      
+      const { start, end, normal, wallLength } = wallData;
+      
+      const relativeLength = wallLength;
+      const t = opening.position / relativeLength;
+      const position = new THREE.Vector3().lerpVectors(start, end, t);
+      
+      const halfWallThickness = LUMBER_DIMENSIONS.stud.width / 24; 
+      position.addScaledVector(normal, halfWallThickness);
+      
+      const direction = new THREE.Vector3().subVectors(end, start).normalize();
+      
+      // --- 1. Rough Opening (Visual Placeholder) ---
+      const openingMaterial = new THREE.MeshStandardMaterial({
+        color: COLORS[opening.type],
+        transparent: true,
+        opacity: 0.5
+      });
+      
+      const openingGeometry = new THREE.BoxGeometry(
+        opening.type === 'door' ? opening.width : opening.width + 0.5/12, 
+        opening.height,
+        0.25/12 
+      );
+      const openingMesh = new THREE.Mesh(openingGeometry, openingMaterial);
+      
+      openingMesh.position.copy(position);
+      openingMesh.position.y = opening.floorHeight + opening.height / 2;
+      
+      if (normal.x !== 0) {
+        openingMesh.rotation.y = Math.PI / 2;
+      }
+      
+      group.add(openingMesh);
+      
+      // --- 2. Structural Framing ---
+      const studDimW = LUMBER_DIMENSIONS.stud.width / 12; 
+      const studDimH = LUMBER_DIMENSIONS.stud.height / 12; 
+      const headerDimH = LUMBER_DIMENSIONS.header.height / 12; 
+      
+      // Header: Double 2x6 above opening
+      const headerWidth = opening.width + 3/12; 
+      
+      const headerMesh = createLumber(
+        new THREE.Vector3(
+          position.x,
+          opening.floorHeight + opening.height + headerDimH / 2,
+          position.z
+        ),
+        new THREE.Vector3(0, normal.x !== 0 ? Math.PI / 2 : 0, 0),
+        new THREE.Vector3(
+          headerWidth,
+          headerDimH,
+          LUMBER_DIMENSIONS.header.width / 12 
+        ),
+        'header'
+      );
+      group.add(headerMesh);
+      
+      // King Studs 
+      const kingOffset = (opening.width / 2) + studDimW / 2;
+
+      // Left King Stud
+      const leftKingPos = new THREE.Vector3().copy(position).addScaledVector(direction, -kingOffset);
+      const leftKingStud = createLumber(
+        new THREE.Vector3(leftKingPos.x, document.getElementById('height').value / 2, leftKingPos.z),
+        new THREE.Vector3(0, normal.x !== 0 ? Math.PI / 2 : 0, 0),
+        new THREE.Vector3(studDimW, document.getElementById('height').value, studDimH),
+        'king'
+      );
+      group.add(leftKingStud);
+      
+      // Right King Stud
+      const rightKingPos = new THREE.Vector3().copy(position).addScaledVector(direction, kingOffset);
+      const rightKingStud = createLumber(
+        new THREE.Vector3(rightKingPos.x, document.getElementById('height').value / 2, rightKingPos.z),
+        new THREE.Vector3(0, normal.x !== 0 ? Math.PI / 2 : 0, 0),
+        new THREE.Vector3(studDimW, document.getElementById('height').value, studDimH),
+        'king'
+      );
+      group.add(rightKingStud);
+      
+      // Trimmer/Jack Studs 
+      const trimmerHeight = opening.floorHeight + opening.height;
+      const trimmerHalfHeight = trimmerHeight / 2;
+      const trimmerOffset = (opening.width / 2) + studDimW; 
+      
+      // Left Trimmer
+      const trimmerWidthOffset = studDimW / 2;
+      const leftTrimmerPos = new THREE.Vector3().copy(position).addScaledVector(direction, -trimmerOffset + trimmerWidthOffset);
+      const leftTrimmer = createLumber(
+        new THREE.Vector3(leftTrimmerPos.x, trimmerHalfHeight, leftTrimmerPos.z),
+        new THREE.Vector3(0, normal.x !== 0 ? Math.PI / 2 : 0, 0),
+        new THREE.Vector3(studDimW, trimmerHeight, studDimH),
+        'cripple' 
+      );
+      group.add(leftTrimmer);
+      
+      // Right Trimmer
+      const rightTrimmerPos = new THREE.Vector3().copy(position).addScaledVector(direction, trimmerOffset - trimmerWidthOffset);
+      const rightTrimmer = createLumber(
+        new THREE.Vector3(rightTrimmerPos.x, trimmerHalfHeight, rightTrimmerPos.z),
+        new THREE.Vector3(0, normal.x !== 0 ? Math.PI / 2 : 0, 0),
+        new THREE.Vector3(studDimW, trimmerHeight, studDimH),
+        'cripple'
+      );
+      group.add(rightTrimmer);
+
+
+      // Sill (Windows only)
+      if (opening.type === 'window') {
+        const sillDimH = LUMBER_DIMENSIONS.sill.height / 12;
+        const sillMesh = createLumber(
+          new THREE.Vector3(
+            position.x,
+            opening.floorHeight - sillDimH / 2,
+            position.z
+          ),
+          new THREE.Vector3(0, normal.x !== 0 ? Math.PI / 2 : 0, 0),
+          new THREE.Vector3(
+            opening.width + 3/12, 
+            sillDimH,
+            LUMBER_DIMENSIONS.sill.width / 12
+          ),
+          'sill'
+        );
+        group.add(sillMesh);
+        
+        // Cripple Studs below window
+        const crippleSpacing = 16 / 12;
+        const crippleCount = Math.floor(opening.width / crippleSpacing) + 1; 
+        const crippleHeight = opening.floorHeight - sillDimH;
+        
+        if (crippleHeight > 0) {
+          for (let i = 0; i < crippleCount; i++) {
+            const crippleCenter = (i + 0.5) * crippleSpacing - opening.width / 2;
+            const cripplePos = new THREE.Vector3().copy(position).addScaledVector(direction, crippleCenter);
+            
+            const crippleStud = createLumber(
+              new THREE.Vector3(
+                cripplePos.x,
+                crippleHeight / 2 + studDimH/2, 
+                cripplePos.z
+              ),
+              new THREE.Vector3(0, normal.x !== 0 ? Math.PI / 2 : 0, 0),
+              new THREE.Vector3(studDimW, crippleHeight - studDimH/2, studDimH),
+              'cripple'
+            );
+            group.add(crippleStud);
+          }
+        }
+      }
+      
+      // Cripple Studs above the opening (between header and top plate)
+      const heightRemaining = document.getElementById('height').value - (trimmerHeight + headerDimH);
+      const topCrippleHalfHeight = trimmerHeight + headerDimH + heightRemaining / 2;
+      
+      if (heightRemaining > 0.5) { 
+        const topCrippleSpacing = 16 / 12;
+        const topCrippleCount = Math.floor(opening.width / topCrippleSpacing) + 1; 
+        
+        for (let i = 0; i < topCrippleCount; i++) {
+          const crippleCenter = (i + 0.5) * topCrippleSpacing - opening.width / 2;
+          const cripplePos = new THREE.Vector3().copy(position).addScaledVector(direction, crippleCenter);
+          
+          const crippleStud = createLumber(
+            new THREE.Vector3(
+              cripplePos.x,
+              topCrippleHalfHeight,
+              cripplePos.z
+            ),
+            new THREE.Vector3(0, normal.x !== 0 ? Math.PI / 2 : 0, 0),
+            new THREE.Vector3(studDimW, heightRemaining, studDimH),
+            'cripple'
+          );
+          group.add(crippleStud);
+        }
+      }
+      
+      return group;
+    }
+
+    function createFraming(length, width, height) {
+      const group = new THREE.Group();
+      const studSpacing = 16 / 12; 
+      const studDimW = LUMBER_DIMENSIONS.stud.width / 12;
+      const studDimH = LUMBER_DIMENSIONS.stud.height / 12;
+      const plateDimH = LUMBER_DIMENSIONS.plate.height / 12;
+      
+      const plateHalfW = LUMBER_DIMENSIONS.plate.width / 24; 
+      
+      // Corner positions for initial studs
+      const cornerPositions = [
+        { x: length / 2 - plateHalfW, z: width / 2 - plateHalfW, angle: 0 },
+        { x: -length / 2 + plateHalfW, z: width / 2 - plateHalfW, angle: 0 },
+        { x: length / 2 - plateHalfW, z: -width / 2 + plateHalfW, angle: 0 },
+        { x: -length / 2 + plateHalfW, z: -width / 2 + plateHalfW, angle: 0 }
+      ];
+
+      // --- Vertical Studs (Including Corners) ---
+      const studs = [];
+      const plateHalfH = plateDimH / 2;
+      const studHeight = height - plateDimH * 2; // Height minus top/bottom plates
+
+      // Long walls (Front/Back)
+      for (let x = -length / 2; x <= length / 2; x += studSpacing) {
+        if (Math.abs(x) < length / 2) {
+            studs.push({ x: x, z: width / 2 - plateHalfW, angle: 0 });
+            studs.push({ x: x, z: -width / 2 + plateHalfW, angle: 0 });
+        }
+      }
+      
+      // Short walls (Left/Right)
+      for (let z = -width / 2; z <= width / 2; z += studSpacing) {
+        if (Math.abs(z) < width / 2) {
+            studs.push({ x: length / 2 - plateHalfW, z: z, angle: Math.PI / 2 });
+            studs.push({ x: -length / 2 + plateHalfW, z: z, angle: Math.PI / 2 });
+        }
+      }
+
+      // Add Corner Studs 
+      cornerPositions.forEach(pos => {
+        // Stud 1: oriented for the long wall
+        group.add(createLumber(
+          new THREE.Vector3(pos.x, plateDimH + studHeight / 2, pos.z),
+          new THREE.Vector3(0, pos.angle, 0),
+          new THREE.Vector3(studDimW, studHeight, studDimH), 
+          'stud'
+        ));
+        // Stud 2: oriented for the short wall
+        group.add(createLumber(
+          new THREE.Vector3(pos.x, plateDimH + studHeight / 2, pos.z),
+          new THREE.Vector3(0, pos.angle + Math.PI / 2, 0),
+          new THREE.Vector3(studDimW, studHeight, studDimH),
+          'stud'
+        ));
+      });
+
+      // Add regular studs (excluding corners to avoid overlap)
+      studs.forEach(stud => {
+          group.add(createLumber(
+            new THREE.Vector3(stud.x, plateDimH + studHeight / 2, stud.z),
+            new THREE.Vector3(0, stud.angle, 0),
+            new THREE.Vector3(studDimW, studHeight, studDimH),
+            'stud'
+          ));
+      });
+
+      // --- Horizontal Plates ---
+      
+      // Bottom Plate (Single)
+      group.add(createLumber(
+        new THREE.Vector3(0, plateHalfH, 0),
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(length, plateDimH, LUMBER_DIMENSIONS.plate.width / 12),
+        'plate'
+      ));
+
+      // Top Plates (Double)
+      for (let i = 0; i < 2; i++) {
+          const yPos = height - plateHalfH - (i * plateDimH);
+          group.add(createLumber(
+              new THREE.Vector3(0, yPos, 0),
+              new THREE.Vector3(0, 0, 0),
+              new THREE.Vector3(length, plateDimH, LUMBER_DIMENSIONS.plate.width / 12),
+              'plate'
+          ));
+      }
+
+      // Side Plates (Added to complete the perimeter visual on top/bottom)
+      // Right Side Plate
+      group.add(createLumber(
+        new THREE.Vector3(length / 2, height / 2, 0),
+        new THREE.Vector3(0, Math.PI / 2, 0),
+        new THREE.Vector3(width, plateDimH, LUMBER_DIMENSIONS.plate.width / 12),
+        'plate'
+      ));
+
+      // Left Side Plate
+      group.add(createLumber(
+        new THREE.Vector3(-length / 2, height / 2, 0),
+        new THREE.Vector3(0, Math.PI / 2, 0),
+        new THREE.Vector3(width, plateDimH, LUMBER_DIMENSIONS.plate.width / 12),
+        'plate'
+      ));
+
+      return group;
+    }
+
+    function onWindowResize() {
+      const container = document.getElementById('preview-container');
+      const rect = container.getBoundingClientRect();
+      const width = rect.width;
+      const height = rect.height;
+
+      if (camera && renderer && width > 0 && height > 0) {
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+        renderer.setSize(width, height);
+        // Explicitly render after resize to ensure it doesn't look stretched immediately
+        renderer.render(scene, camera); 
+      }
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      if (controls) controls.update();
+      if (renderer && scene && camera) {
+        renderer.render(scene, camera);
+      }
+    }
+
+    function updatePreview() {
+      if (!scene) return;
+
+      // Remove existing elements (walls, framing, openings)
+      scene.children.filter(child => child.name === 'wall' || child.name === 'opening' || child.name === "framing").forEach(child => scene.remove(child));
+
+      const length = parseFloat(document.getElementById('length').value);
+      const width = parseFloat(document.getElementById('width').value);
+      const height = parseFloat(document.getElementById('height').value);
+      
+      if (isNaN(length) || isNaN(width) || isNaN(height) || length <= 0 || width <= 0 || height <= 0) {
+        return;
+      }
+
+      const wallThickness = LUMBER_DIMENSIONS.stud.width / 12; 
+      const wallHeight = height;
+
+      // --- Exterior Shell (Translucent for visualization) ---
+
+      const wallMaterial = new THREE.MeshStandardMaterial({ 
+        color: '#808080',
+        transparent: true,
+        opacity: 0.1 
+      });
+
+      // Walls
+      const walls = [
+        // Front Wall (Z+)
+        { geometry: new THREE.BoxGeometry(length, wallHeight, wallThickness), position: new THREE.Vector3(0, wallHeight / 2, width / 2 + wallThickness / 2), rotation: 0 }, 
+        // Back Wall (Z-)
+        { geometry: new THREE.BoxGeometry(length, wallHeight, wallThickness), position: new THREE.Vector3(0, wallHeight / 2, -width / 2 - wallThickness / 2), rotation: 0 }, 
+        // Right Wall (X+)
+        { geometry: new THREE.BoxGeometry(width, wallHeight, wallThickness), position: new THREE.Vector3(length / 2 + wallThickness / 2, wallHeight / 2, 0), rotation: Math.PI / 2 }, 
+        // Left Wall (X-)
+        { geometry: new THREE.BoxGeometry(width, wallHeight, wallThickness), position: new THREE.Vector3(-length / 2 - wallThickness / 2, wallHeight / 2, 0), rotation: Math.PI / 2 }  
+      ];
+
+      walls.forEach(w => {
+        const mesh = new THREE.Mesh(w.geometry, wallMaterial);
+        mesh.position.copy(w.position);
+        mesh.rotation.y = w.rotation;
+        mesh.name = 'wall';
+        scene.add(mesh);
+      });
+
+      // Floor (Opaque)
+      const floorGeometry = new THREE.BoxGeometry(length, wallThickness, width);
+      const floorMaterial = new THREE.MeshStandardMaterial({ color: '#404040' });
+      const floorMesh = new THREE.Mesh(floorGeometry, floorMaterial);
+      floorMesh.position.set(0, -wallThickness / 2, 0);
+      floorMesh.name = 'wall';
+      scene.add(floorMesh);
+
+      // Ceiling (Translucent)
+      const ceilingGeometry = new THREE.BoxGeometry(length, wallThickness, width);
+      const ceilingMaterial = new THREE.MeshStandardMaterial({ color: '#A9A9A9', transparent: true, opacity: 0.2 });
+      const ceilingMesh = new THREE.Mesh(ceilingGeometry, ceilingMaterial);
+      ceilingMesh.position.set(0, height + wallThickness / 2, 0);
+      ceilingMesh.name = 'wall';
+      scene.add(ceilingMesh);
+
+      // --- Framing and Openings ---
+
+      openings.forEach(opening => {
+        let simplifiedWallData;
+        switch (opening.wall) {
+            case 'front':
+            case 'back':
+                simplifiedWallData = {
+                    start: new THREE.Vector3(-length / 2, 0, opening.wall === 'front' ? width / 2 : -width / 2),
+                    end: new THREE.Vector3(length / 2, 0, opening.wall === 'front' ? width / 2 : -width / 2),
+                    normal: new THREE.Vector3(0, 0, opening.wall === 'front' ? 1 : -1),
+                    wallLength: length
+                };
+                break;
+            case 'right':
+            case 'left':
+                simplifiedWallData = {
+                    start: new THREE.Vector3(opening.wall === 'right' ? length / 2 : -length / 2, 0, -width / 2),
+                    end: new THREE.Vector3(opening.wall === 'right' ? length / 2 : -length / 2, 0, width / 2),
+                    normal: new THREE.Vector3(opening.wall === 'right' ? 1 : -1, 0, 0),
+                    wallLength: width
+                };
+                break;
+        }
+
+        const openingFrame = createOpeningFrame(opening, simplifiedWallData);
+        openingFrame.name = 'opening';
+        scene.add(openingFrame);
+      });
+
+      const framing = createFraming(length, width, height);
+      framing.name = "framing";
+      scene.add(framing);
+      
+      renderer.render(scene, camera);
+    }
+
+    function calculateMaterials() {
+      const length = parseFloat(document.getElementById('length').value);
+      const width = parseFloat(document.getElementById('width').value);
+      const height = parseFloat(document.getElementById('height').value);
+      const studLength = parseFloat(document.getElementById('studLength').value);
+      const studPrice = parseFloat(document.getElementById('studPrice').value);
+      const beamPrice = parseFloat(document.getElementById('beamPrice').value);
+      const sheetrockPrice = parseFloat(document.getElementById('sheetrockPrice').value);
+
+      if (isNaN(length) || isNaN(width) || isNaN(height)) {
+          console.error("Please enter valid room dimensions.");
+          return;
+      }
+
+      const perimeter = 2 * (length + width);
+      const wallArea = perimeter * height;
+      const ceilingArea = length * width;
+
+      let totalOpeningArea = 0;
+      let totalHeaderLength = 0;
+
+      openings.forEach(opening => {
+        totalOpeningArea += opening.width * opening.height;
+        totalHeaderLength += opening.width + 3/12; 
+      });
+
+      // --- Material Calculation ---
+
+      // Sheetrock
+      const sheetrockArea = wallArea + ceilingArea - totalOpeningArea;
+      const sheetrockPieces = Math.ceil(sheetrockArea / (4 * 8)); 
+
+      // 2x4 Lumber (Studs, Plates, Sills, Cripples)
+      const studSpacing = 16 / 12; 
+      let regularStudCount = Math.ceil(perimeter / studSpacing) * (height / studLength); 
+
+      const openingStuds = openings.length * 4; 
+      
+      const plateTotalLength = perimeter * 3;
+      const plateCount = Math.ceil(plateTotalLength / studLength);
+
+      let crippleStudsCount = 0;
+      openings.forEach(opening => {
+          if (opening.type === 'window') {
+              const crippleSpacing = 16 / 12;
+              const numberBelow = Math.floor(opening.width / crippleSpacing) + 1;
+              crippleStudsCount += numberBelow;
+          }
+          
+          const headerHeight = LUMBER_DIMENSIONS.header.height / 12;
+          const heightRemaining = height - (opening.floorHeight + opening.height + headerHeight);
+          if (heightRemaining > 0.5) {
+               const crippleSpacing = 16 / 12;
+               const numberAbove = Math.floor(opening.width / crippleSpacing) + 1;
+               crippleStudsCount += numberAbove;
+          }
+      });
+      
+      const total2x4Pieces = Math.ceil(plateCount + openingStuds + crippleStudsCount + regularStudCount);
+
+      // 2x6 Lumber (Headers, Joists/Beams)
+
+      const header2x6Pieces = Math.ceil((totalHeaderLength / (LUMBER_DIMENSIONS.header.width / 12)) * 2);
+
+      const joistSpacing = 12 / 12; 
+      const joistCount = Math.ceil(length / joistSpacing) * 2; 
+
+      const total2x6Pieces = header2x6Pieces + joistCount;
+
+      // --- Cost Calculation ---
+      const cost2x4 = total2x4Pieces * studPrice;
+      const cost2x6 = total2x6Pieces * beamPrice;
+      const costSheetrock = sheetrockPieces * sheetrockPrice;
+      
+      const totalCost = cost2x4 + cost2x6 + costSheetrock;
+
+      // --- Display Results ---
+      const resultsList = document.getElementById('resultsList');
+      resultsList.innerHTML = `
+        <div class="results-item">2×4 Lumber (Studs, Plates, Sills, Cripples): ${total2x4Pieces} pieces (Est.)</div>
+        <div class="results-item">2×6 Lumber (Headers, Joists/Beams): ${total2x6Pieces} pieces (Est.)</div>
+        <div class="results-item">4×8 Sheetrock Panels: ${sheetrockPieces} panels (Est.)</div>
+        <div class="results-item">Total Wall Area: ${wallArea.toFixed(1)} sq ft</div>
+        <div class="results-item">Total Opening Area: ${totalOpeningArea.toFixed(1)} sq ft</div>
+      `;
+
+      document.getElementById('totalCost').textContent = `Total Estimated Material Cost: $${totalCost.toFixed(2)}`;
+      document.getElementById('results').classList.add('active');
+    }
+
+    function addOpening() {
+      const type = document.getElementById('openingType').value;
+      const wall = document.getElementById('openingWall').value;
+      const position = parseFloat(document.getElementById('openingPosition').value);
+      const width = parseFloat(document.getElementById('openingWidth').value);
+      const height = parseFloat(document.getElementById('openingHeight').value);
+      const floorHeight = parseFloat(document.getElementById('openingFloorHeight').value);
+      
+      const roomLength = parseFloat(document.getElementById('length').value);
+      const roomWidth = parseFloat(document.getElementById('width').value);
+      const maxPosition = (wall === 'front' || wall === 'back') ? roomLength : roomWidth;
+
+      if (isNaN(position) || isNaN(width) || isNaN(height) || isNaN(floorHeight) ||
+          width <= 0 || height <= 0) {
+          console.error("Please enter valid positive numbers for opening dimensions.");
+          return;
+      }
+      
+      const roomHeight = parseFloat(document.getElementById('height').value);
+      if (floorHeight + height > roomHeight) {
+           console.error(`Opening height (${floorHeight} + ${height} = ${floorHeight + height}ft) exceeds room height (${roomHeight}ft).`);
+           return;
+      }
+
+      if (position + width > maxPosition || position < 0) {
+          console.error(`Opening position (${position}ft) and width (${width}ft) exceed wall length (${maxPosition}ft). Please adjust inputs.`);
+          return;
+      }
+
+
+      const opening = { type, wall, position, width, height, floorHeight };
+      openings.push(opening);
+      
+      renderOpeningsList();
+      if(isInitialized) updatePreview(); 
+    }
+
+    function renderOpeningsList() {
+        const openingsList = document.getElementById('openingsList');
+        openingsList.innerHTML = '';
+        
+        openings.forEach((opening, i) => {
+            const openingItem = document.createElement('div');
+            openingItem.className = 'opening-item';
+            openingItem.innerHTML = `
+                <span>${opening.type.charAt(0).toUpperCase() + opening.type.slice(1)} on ${opening.wall.charAt(0).toUpperCase() + opening.wall.slice(1)} Wall: ${opening.width}ft × ${opening.height}ft @ ${opening.position}ft (from left)</span>
+                <button class="btn-remove" onclick="removeOpening(${i})">×</button>
+            `;
+            openingsList.appendChild(openingItem);
+        });
+    }
+
+    function removeOpening(index) {
+      openings.splice(index, 1);
+      renderOpeningsList();
+      if(isInitialized) updatePreview(); 
+    }
+
+    // Initialize the application once the DOM is ready
+    document.addEventListener('DOMContentLoaded', () => {
+      renderOpeningsList(); // Render any initial/saved openings list
+
+      const tabs = document.querySelectorAll('.tab');
+      const tabContents = document.querySelectorAll('.tab-content');
+
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          const tabId = tab.dataset.tab;
+
+          tabs.forEach(t => t.classList.remove('active'));
+          tabContents.forEach(content => content.classList.remove('active'));
+
+          tab.classList.add('active');
+          document.getElementById(tabId).classList.add('active');
+
+          if (tabId === 'preview') {
+            if (!isInitialized) {
+              // Initialize Three.js ONLY when the preview tab is clicked for the first time
+              init();
+              isInitialized = true;
+            } else {
+              // Ensure size is correct on re-display and redraw the scene
+              onWindowResize(); 
+              updatePreview();
+            }
+          }
+        });
+      });
+
+      document.getElementById('btnAddOpening').addEventListener('click', addOpening);
+      
+      // Update preview immediately if dimensions change
+      document.getElementById('length').addEventListener('change', () => { if(isInitialized) updatePreview(); });
+      document.getElementById('width').addEventListener('change', () => { if(isInitialized) updatePreview(); });
+      document.getElementById('height').addEventListener('change', () => { if(isInitialized) updatePreview(); });
+    });
+  </script>
+</body>
+</html>
+
