@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Info, Scissors, Hammer, Home, GripVertical, BoxSelect } from "lucide-react";
+import { Plus, Trash2, Info, Scissors, Hammer, Home, GripVertical, BoxSelect, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
-import { Dimensions, Opening, Prices, WallElement } from "@/lib/construction-types";
-import { calculateMaterials } from "@/lib/calculations";
+import { Dimensions, Opening, Prices, WallElement, Cabinet } from "@/lib/construction-types";
+import { calculateMaterials, calculateCabinetMaterials } from "@/lib/calculations";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { nanoid } from "nanoid";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 export default function ConstructionCalculator() {
   const { toast } = useToast();
@@ -42,10 +43,18 @@ export default function ConstructionCalculator() {
 
   const [walls, setWalls] = useState<WallElement[]>([]);
   const [openings, setOpenings] = useState<Opening[]>([]);
+  const [cabinets, setCabinets] = useState<Cabinet[]>([]);
+  const [selectedCabinetId, setSelectedCabinetId] = useState<string | null>(null);
   
-  const [activeTab, setActiveTab] = useState<'calculator' | 'preview' | 'cutlist'>('preview'); // Default to preview for "Builder" feel
+  const [activeTab, setActiveTab] = useState<'calculator' | 'preview' | 'cutlist' | 'cabinet'>('preview');
   const [selectedWallId, setSelectedWallId] = useState<string | null>(null);
   const [toolMode, setToolMode] = useState<'select' | 'add_wall' | 'add_window' | 'add_door'>('select');
+  
+  const [expandedSections, setExpandedSections] = useState({
+    global: true,
+    walls: true,
+    cabinets: false
+  });
 
   // --- Initialization ---
   useEffect(() => {
@@ -133,6 +142,25 @@ export default function ConstructionCalculator() {
       setOpenings([...openings, newOp]);
       toast({ title: "Opening Added", description: `Added ${type} to selected wall.` });
   };
+
+  const handleAddCabinet = () => {
+      const newCabinet: Cabinet = {
+          id: nanoid(),
+          name: `Cabinet ${cabinets.length + 1}`,
+          width: 36,
+          depth: 12,
+          height: 30,
+          doorCount: 2
+      };
+      setCabinets([...cabinets, newCabinet]);
+      setSelectedCabinetId(newCabinet.id);
+      setActiveTab('cabinet');
+      toast({ title: "Cabinet Added", description: "New cabinet created." });
+  };
+
+  const updateCabinet = (id: string, updates: Partial<Cabinet>) => {
+      setCabinets(cabinets.map(c => c.id === id ? { ...c, ...updates } : c));
+  };
   
   const updateWall = (id: string, updates: Partial<WallElement>) => {
       setWalls(walls.map(w => w.id === id ? { ...w, ...updates } : w));
@@ -161,6 +189,7 @@ export default function ConstructionCalculator() {
          <div className="flex gap-2">
             <Button size="sm" variant={activeTab === 'preview' ? 'default' : 'ghost'} onClick={() => setActiveTab('preview')}>Builder 3D</Button>
             <Button size="sm" variant={activeTab === 'cutlist' ? 'default' : 'ghost'} onClick={() => setActiveTab('cutlist')}>Cut List</Button>
+            <Button size="sm" variant={activeTab === 'cabinet' ? 'default' : 'ghost'} onClick={() => setActiveTab('cabinet')}>Cabinets</Button>
             <Button size="sm" variant={activeTab === 'calculator' ? 'default' : 'ghost'} onClick={() => setActiveTab('calculator')}>Estimate</Button>
          </div>
       </header>
@@ -197,46 +226,58 @@ export default function ConstructionCalculator() {
                   <Button 
                     variant="outline"
                     className="justify-start gap-2"
-                    onClick={() => handleAddOpening('door')}
-                    disabled={!selectedWallId}
+                    onClick={handleAddCabinet}
                   >
-                    <Plus className="w-4 h-4" /> Door
+                    <Plus className="w-4 h-4" /> Cabinet
                   </Button>
               </div>
               
               {/* Structure Tree */}
               <ScrollArea className="flex-1">
-                  <div className="p-4 space-y-4">
+                  <div className="p-4 space-y-2">
                       
-                      {/* Global Settings */}
-                      <div className="space-y-2">
-                          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Global Structure</h3>
-                          <div className="grid grid-cols-2 gap-2">
-                              <div className="space-y-1">
-                                  <Label className="text-[10px]">Length</Label>
-                                  <Input type="number" value={dimensions.length} onChange={e => setDimensions({...dimensions, length: +e.target.value})} className="h-7 text-xs" />
+                      {/* Global Settings Collapsible */}
+                      <Collapsible
+                        open={expandedSections.global}
+                        onOpenChange={(open) => setExpandedSections({...expandedSections, global: open})}
+                      >
+                          <CollapsibleTrigger className="flex items-center gap-2 w-full hover:bg-muted/50 p-2 rounded">
+                              <ChevronDown className={`w-4 h-4 transition-transform ${expandedSections.global ? '' : '-rotate-90'}`} />
+                              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex-1">Global</h3>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="space-y-2 mt-2 ml-4">
+                              <div className="grid grid-cols-2 gap-2">
+                                  <div className="space-y-1">
+                                      <Label className="text-[10px]">Length</Label>
+                                      <Input type="number" value={dimensions.length} onChange={e => setDimensions({...dimensions, length: +e.target.value})} className="h-7 text-xs" />
+                                  </div>
+                                  <div className="space-y-1">
+                                      <Label className="text-[10px]">Width</Label>
+                                      <Input type="number" value={dimensions.width} onChange={e => setDimensions({...dimensions, width: +e.target.value})} className="h-7 text-xs" />
+                                  </div>
+                                  <div className="space-y-1">
+                                      <Label className="text-[10px]">Pitch</Label>
+                                      <Input type="number" value={dimensions.roofPitch} onChange={e => setDimensions({...dimensions, roofPitch: +e.target.value})} className="h-7 text-xs" />
+                                  </div>
+                                  <div className="space-y-1">
+                                      <Label className="text-[10px]">Overhang</Label>
+                                      <Input type="number" value={dimensions.overhang} onChange={e => setDimensions({...dimensions, overhang: +e.target.value})} className="h-7 text-xs" />
+                                  </div>
                               </div>
-                              <div className="space-y-1">
-                                  <Label className="text-[10px]">Width</Label>
-                                  <Input type="number" value={dimensions.width} onChange={e => setDimensions({...dimensions, width: +e.target.value})} className="h-7 text-xs" />
-                              </div>
-                              <div className="space-y-1">
-                                  <Label className="text-[10px]">Pitch</Label>
-                                  <Input type="number" value={dimensions.roofPitch} onChange={e => setDimensions({...dimensions, roofPitch: +e.target.value})} className="h-7 text-xs" />
-                              </div>
-                              <div className="space-y-1">
-                                  <Label className="text-[10px]">Overhang</Label>
-                                  <Input type="number" value={dimensions.overhang} onChange={e => setDimensions({...dimensions, overhang: +e.target.value})} className="h-7 text-xs" />
-                              </div>
-                          </div>
-                      </div>
+                          </CollapsibleContent>
+                      </Collapsible>
                       
-                      <Separator />
-                      
-                      {/* Wall List */}
-                      <div className="space-y-2">
-                          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Walls</h3>
-                          <div className="space-y-1">
+                      {/* Walls Collapsible */}
+                      <Collapsible
+                        open={expandedSections.walls}
+                        onOpenChange={(open) => setExpandedSections({...expandedSections, walls: open})}
+                      >
+                          <CollapsibleTrigger className="flex items-center gap-2 w-full hover:bg-muted/50 p-2 rounded">
+                              <ChevronDown className={`w-4 h-4 transition-transform ${expandedSections.walls ? '' : '-rotate-90'}`} />
+                              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex-1">Walls</h3>
+                              <Badge variant="outline" className="text-[9px]">{walls.length}</Badge>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="space-y-1 mt-2 ml-4">
                               {walls.map(wall => (
                                   <div 
                                     key={wall.id}
@@ -248,7 +289,7 @@ export default function ConstructionCalculator() {
                                   >
                                       <div className="flex items-center gap-2">
                                           <GripVertical className="w-3 h-3 opacity-50" />
-                                          <span className="truncate max-w-[140px]">{wall.name}</span>
+                                          <span className="truncate max-w-[120px]">{wall.name}</span>
                                       </div>
                                       {wall.type === 'interior' && (
                                           <Trash2 
@@ -262,8 +303,42 @@ export default function ConstructionCalculator() {
                                       )}
                                   </div>
                               ))}
-                          </div>
-                      </div>
+                          </CollapsibleContent>
+                      </Collapsible>
+
+                      {/* Cabinets Collapsible */}
+                      <Collapsible
+                        open={expandedSections.cabinets}
+                        onOpenChange={(open) => setExpandedSections({...expandedSections, cabinets: open})}
+                      >
+                          <CollapsibleTrigger className="flex items-center gap-2 w-full hover:bg-muted/50 p-2 rounded">
+                              <ChevronDown className={`w-4 h-4 transition-transform ${expandedSections.cabinets ? '' : '-rotate-90'}`} />
+                              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex-1">Cabinets</h3>
+                              <Badge variant="outline" className="text-[9px]">{cabinets.length}</Badge>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="space-y-1 mt-2 ml-4">
+                              {cabinets.map(cab => (
+                                  <div 
+                                    key={cab.id}
+                                    onClick={() => setSelectedCabinetId(cab.id)}
+                                    className={`
+                                        flex items-center justify-between p-2 rounded cursor-pointer text-sm border transition-colors
+                                        ${selectedCabinetId === cab.id ? 'bg-primary/10 border-primary text-primary' : 'bg-card border-transparent hover:bg-muted'}
+                                    `}
+                                  >
+                                      <span className="truncate">{cab.name}</span>
+                                      <Trash2 
+                                        className="w-3 h-3 text-muted-foreground hover:text-destructive" 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setCabinets(cabinets.filter(c => c.id !== cab.id));
+                                            if (selectedCabinetId === cab.id) setSelectedCabinetId(null);
+                                        }}
+                                      />
+                                  </div>
+                              ))}
+                          </CollapsibleContent>
+                      </Collapsible>
 
                   </div>
               </ScrollArea>
@@ -397,6 +472,116 @@ export default function ConstructionCalculator() {
                   </div>
               )}
               
+              {activeTab === 'cabinet' && (
+                  <div className="flex-1 p-8 overflow-auto bg-background">
+                      {selectedCabinetId && cabinets.find(c => c.id === selectedCabinetId) && (() => {
+                          const selectedCabinet = cabinets.find(c => c.id === selectedCabinetId)!;
+                          const cabinetResults = calculateCabinetMaterials(selectedCabinet);
+                          
+                          return (
+                              <div className="grid grid-cols-3 gap-8">
+                                  <Card className="col-span-1">
+                                      <CardHeader>
+                                          <CardTitle className="text-base">Cabinet Dimensions</CardTitle>
+                                      </CardHeader>
+                                      <CardContent className="space-y-4">
+                                          <div className="space-y-2">
+                                              <Label className="text-xs">Name</Label>
+                                              <Input 
+                                                value={selectedCabinet.name}
+                                                onChange={e => updateCabinet(selectedCabinet.id, {name: e.target.value})}
+                                                className="text-sm"
+                                              />
+                                          </div>
+                                          <div className="grid grid-cols-2 gap-2">
+                                              <div className="space-y-2">
+                                                  <Label className="text-xs">Width (in)</Label>
+                                                  <Input 
+                                                    type="number"
+                                                    value={selectedCabinet.width}
+                                                    onChange={e => updateCabinet(selectedCabinet.id, {width: +e.target.value})}
+                                                    className="text-sm"
+                                                  />
+                                              </div>
+                                              <div className="space-y-2">
+                                                  <Label className="text-xs">Depth (in)</Label>
+                                                  <Input 
+                                                    type="number"
+                                                    value={selectedCabinet.depth}
+                                                    onChange={e => updateCabinet(selectedCabinet.id, {depth: +e.target.value})}
+                                                    className="text-sm"
+                                                  />
+                                              </div>
+                                              <div className="space-y-2">
+                                                  <Label className="text-xs">Height (in)</Label>
+                                                  <Input 
+                                                    type="number"
+                                                    value={selectedCabinet.height}
+                                                    onChange={e => updateCabinet(selectedCabinet.id, {height: +e.target.value})}
+                                                    className="text-sm"
+                                                  />
+                                              </div>
+                                              <div className="space-y-2">
+                                                  <Label className="text-xs">Doors</Label>
+                                                  <Input 
+                                                    type="number"
+                                                    value={selectedCabinet.doorCount}
+                                                    onChange={e => updateCabinet(selectedCabinet.id, {doorCount: +e.target.value})}
+                                                    className="text-sm"
+                                                  />
+                                              </div>
+                                          </div>
+                                      </CardContent>
+                                  </Card>
+
+                                  <Card className="col-span-2">
+                                      <CardHeader>
+                                          <CardTitle className="text-base">Materials & Cost</CardTitle>
+                                      </CardHeader>
+                                      <CardContent className="space-y-4">
+                                          <div className="grid grid-cols-3 gap-3">
+                                              <div className="p-3 bg-muted rounded">
+                                                  <div className="text-lg font-bold">{cabinetResults.materials.oneByTwelve}</div>
+                                                  <div className="text-xs text-muted-foreground">1x12 Boards</div>
+                                              </div>
+                                              <div className="p-3 bg-muted rounded">
+                                                  <div className="text-lg font-bold">{cabinetResults.materials.oneByEight}</div>
+                                                  <div className="text-xs text-muted-foreground">1x8 Boards</div>
+                                              </div>
+                                              <div className="p-3 bg-muted rounded">
+                                                  <div className="text-lg font-bold">{cabinetResults.materials.oneByFour}</div>
+                                                  <div className="text-xs text-muted-foreground">1x4 Boards</div>
+                                              </div>
+                                              <div className="p-3 bg-muted rounded">
+                                                  <div className="text-lg font-bold">{cabinetResults.materials.plywood}</div>
+                                                  <div className="text-xs text-muted-foreground">Plywood Sheets</div>
+                                              </div>
+                                              <div className="p-3 bg-muted rounded">
+                                                  <div className="text-lg font-bold">{cabinetResults.materials.hardwood}</div>
+                                                  <div className="text-xs text-muted-foreground">Hardwood Pieces</div>
+                                              </div>
+                                              <div className="p-3 bg-muted rounded border-2 border-primary">
+                                                  <div className="text-lg font-bold text-primary">${cabinetResults.totalCost.toFixed(0)}</div>
+                                                  <div className="text-xs text-muted-foreground">Estimated Cost</div>
+                                              </div>
+                                          </div>
+                                      </CardContent>
+                                  </Card>
+                              </div>
+                          );
+                      })()}
+                      
+                      {!selectedCabinetId && (
+                          <div className="flex items-center justify-center h-full">
+                              <Card className="p-8 text-center max-w-md">
+                                  <CardTitle>No Cabinet Selected</CardTitle>
+                                  <p className="text-sm text-muted-foreground mt-2">Click the "Cabinet" button above to create one</p>
+                              </Card>
+                          </div>
+                      )}
+                  </div>
+              )}
+
               {activeTab === 'calculator' && (
                    <div className="flex-1 p-8 overflow-auto bg-background">
                       <Card className="max-w-3xl mx-auto">

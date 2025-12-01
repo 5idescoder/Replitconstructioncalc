@@ -1,4 +1,4 @@
-import { Dimensions, Opening, Prices, LUMBER_DIMENSIONS, CutItem, WallElement } from "./construction-types";
+import { Dimensions, Opening, Prices, LUMBER_DIMENSIONS, CutItem, WallElement, Cabinet, CabinetResults } from "./construction-types";
 
 export interface MaterialResults {
   total2x4Pieces: number;
@@ -262,6 +262,117 @@ export function calculateMaterials(
     costPlywood,
     costShingles,
     costConcrete,
+    totalCost,
+    cutList
+  };
+}
+
+export function calculateCabinetMaterials(
+  cabinet: Cabinet,
+  prices: Record<string, number> = {}
+): CabinetResults {
+  const { width, depth, height, doorCount } = cabinet;
+  const DEFAULT_PRICES = {
+    oneByTwelve: 2.50,
+    oneByEight: 1.80,
+    oneByFour: 1.20,
+    plywood: 32.50,
+    hardwood: 5.00
+  };
+  const finalPrices = { ...DEFAULT_PRICES, ...prices };
+
+  const cutList: CutItem[] = [];
+
+  // Cabinet box sides (1x12 boards)
+  const sideLength = height;
+  cutList.push({
+    material: '1x12',
+    description: 'Cabinet Sides',
+    length: sideLength,
+    count: 2
+  });
+
+  // Top and bottom (1x12)
+  cutList.push({
+    material: '1x12',
+    description: 'Cabinet Top/Bottom',
+    length: width,
+    count: 2
+  });
+
+  // Back panel (plywood)
+  cutList.push({
+    material: 'Plywood',
+    description: 'Back Panel',
+    length: width * depth,
+    count: 1
+  });
+
+  // Shelves (1x12 or plywood)
+  const shelfCount = Math.max(2, Math.floor(height / 15)); // Shelf every ~15"
+  cutList.push({
+    material: '1x12',
+    description: 'Interior Shelves',
+    length: width - 3,
+    count: shelfCount
+  });
+
+  // Shelf supports (1x4)
+  cutList.push({
+    material: '1x4',
+    description: 'Shelf Supports',
+    length: depth - 3,
+    count: shelfCount * 2
+  });
+
+  // Doors (1x8 frame members)
+  const doorWidth = (width - 2) / doorCount;
+  cutList.push({
+    material: '1x8',
+    description: 'Door Stiles (vertical)',
+    length: height - 2,
+    count: doorCount * 2 + 1
+  });
+
+  cutList.push({
+    material: '1x8',
+    description: 'Door Rails (horizontal)',
+    length: doorWidth - 1,
+    count: doorCount * 4
+  });
+
+  // Panel inserts for doors (plywood or hardwood)
+  const panelArea = (doorWidth - 4) * (height - 12) * doorCount;
+  const panelPieces = Math.ceil(panelArea / (32 * 48)); // 4x8 sheet equivalent
+  cutList.push({
+    material: 'Plywood',
+    description: 'Door Panels',
+    length: panelArea,
+    count: 1
+  });
+
+  // Materials count
+  const oneByTwelve = 2 + 2 + shelfCount; // sides + top/bottom + shelves
+  const oneByEight = doorCount * 2 + 1 + (doorCount * 4); // stiles + rails
+  const oneByFour = shelfCount * 2;
+  const plywood = 2 + panelPieces; // back + door panels
+  const hardwood = doorCount * 2; // door frames
+
+  const totalCost =
+    (oneByTwelve * finalPrices.oneByTwelve) +
+    (oneByEight * finalPrices.oneByEight) +
+    (oneByFour * finalPrices.oneByFour) +
+    (plywood * finalPrices.plywood) +
+    (hardwood * finalPrices.hardwood);
+
+  return {
+    materials: {
+      oneByTwelve,
+      oneByEight,
+      oneByFour,
+      plywood,
+      hardwood
+    },
     totalCost,
     cutList
   };

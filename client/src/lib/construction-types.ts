@@ -50,11 +50,32 @@ export interface Opening {
   floorHeight: number;
 }
 
+export interface Cabinet {
+  id: string;
+  name: string;
+  width: number;    // inches
+  depth: number;    // inches
+  height: number;   // inches
+  doorCount: number; // Number of doors
+}
+
 export interface CutItem {
   material: string;
   description: string;
   length: number; // in inches usually, or feet for some
   count: number;
+}
+
+export interface CabinetResults {
+  materials: {
+    oneByTwelve: number;
+    oneByEight: number;
+    oneByFour: number;
+    plywood: number;
+    hardwood: number;
+  };
+  totalCost: number;
+  cutList: CutItem[];
 }
 
 export const COLORS: Record<LumberType | string, string> = {
