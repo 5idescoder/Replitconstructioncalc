@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Info, Scissors } from "lucide-react";
+import { Plus, Trash2, Info, Scissors, Hammer, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,13 +25,18 @@ export default function ConstructionCalculator() {
     width: 20,
     height: 8,
     studLength: 8,
-    beamLength: 8
+    beamLength: 8,
+    roofPitch: 6, // 6/12 pitch default
+    overhang: 12 // 12 inch overhang
   });
 
   const [prices, setPrices] = useState<Prices>({
     stud: 3.98,
     beam: 12.98,
-    sheetrock: 15.98
+    sheetrock: 15.98,
+    plywood: 32.50,
+    shingleSquare: 35.00, // Per bundle approx
+    concrete: 150.00 // Per Yard
   });
 
   const [openings, setOpenings] = useState<Opening[]>([]);
@@ -120,7 +125,9 @@ export default function ConstructionCalculator() {
           {/* Room Dimensions */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-display uppercase tracking-wider text-accent">Room Dimensions</CardTitle>
+              <CardTitle className="text-lg font-display uppercase tracking-wider text-accent flex items-center gap-2">
+                <Hammer className="w-4 h-4" /> Structure
+              </CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4">
               <div className="grid grid-cols-2 gap-4">
@@ -163,13 +170,40 @@ export default function ConstructionCalculator() {
                   />
                 </div>
               </div>
+              
+              <Separator />
+              
+              <div className="space-y-2">
+                 <Label className="text-xs font-semibold text-muted-foreground uppercase">Roof Config</Label>
+                 <div className="grid grid-cols-2 gap-4">
+                   <div className="space-y-1">
+                     <Label className="text-[10px]">Pitch (x/12)</Label>
+                     <Input 
+                        type="number" 
+                        min={0}
+                        max={18}
+                        value={dimensions.roofPitch} 
+                        onChange={(e) => setDimensions({...dimensions, roofPitch: parseFloat(e.target.value) || 0})}
+                     />
+                   </div>
+                   <div className="space-y-1">
+                     <Label className="text-[10px]">Overhang (in)</Label>
+                     <Input 
+                        type="number" 
+                        min={0}
+                        value={dimensions.overhang} 
+                        onChange={(e) => setDimensions({...dimensions, overhang: parseFloat(e.target.value) || 0})}
+                     />
+                   </div>
+                 </div>
+              </div>
             </CardContent>
           </Card>
 
-          {/* Material Settings (Collapsible or in a separate section) */}
+          {/* Material Settings */}
           <Card>
              <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-display uppercase tracking-wider text-muted-foreground">Material Config</CardTitle>
+              <CardTitle className="text-lg font-display uppercase tracking-wider text-muted-foreground">Pricing & Config</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -196,30 +230,27 @@ export default function ConstructionCalculator() {
               <div className="grid grid-cols-3 gap-2">
                 <div className="space-y-1">
                   <Label className="text-[10px] text-muted-foreground">2x4 Price</Label>
-                  <Input 
-                    className="h-8 text-sm"
-                    type="number" 
-                    value={prices.stud} 
-                    onChange={(e) => setPrices({...prices, stud: parseFloat(e.target.value) || 0})}
-                  />
+                  <Input className="h-8 text-sm" type="number" value={prices.stud} onChange={(e) => setPrices({...prices, stud: parseFloat(e.target.value) || 0})} />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[10px] text-muted-foreground">2x6 Price</Label>
-                  <Input 
-                     className="h-8 text-sm"
-                    type="number" 
-                    value={prices.beam} 
-                    onChange={(e) => setPrices({...prices, beam: parseFloat(e.target.value) || 0})}
-                  />
+                  <Input className="h-8 text-sm" type="number" value={prices.beam} onChange={(e) => setPrices({...prices, beam: parseFloat(e.target.value) || 0})} />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[10px] text-muted-foreground">Sheetrock Price</Label>
-                  <Input 
-                     className="h-8 text-sm"
-                    type="number" 
-                    value={prices.sheetrock} 
-                    onChange={(e) => setPrices({...prices, sheetrock: parseFloat(e.target.value) || 0})}
-                  />
+                  <Label className="text-[10px] text-muted-foreground">Sheetrock</Label>
+                  <Input className="h-8 text-sm" type="number" value={prices.sheetrock} onChange={(e) => setPrices({...prices, sheetrock: parseFloat(e.target.value) || 0})} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Plywood</Label>
+                  <Input className="h-8 text-sm" type="number" value={prices.plywood} onChange={(e) => setPrices({...prices, plywood: parseFloat(e.target.value) || 0})} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Shingle Bndl</Label>
+                  <Input className="h-8 text-sm" type="number" value={prices.shingleSquare} onChange={(e) => setPrices({...prices, shingleSquare: parseFloat(e.target.value) || 0})} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Concrete Yd</Label>
+                  <Input className="h-8 text-sm" type="number" value={prices.concrete} onChange={(e) => setPrices({...prices, concrete: parseFloat(e.target.value) || 0})} />
                 </div>
               </div>
             </CardContent>
@@ -228,10 +259,13 @@ export default function ConstructionCalculator() {
           {/* Opening Manager */}
           <Card className="flex-1 flex flex-col">
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-display uppercase tracking-wider text-accent">Openings Manager</CardTitle>
+              <CardTitle className="text-lg font-display uppercase tracking-wider text-accent flex items-center gap-2">
+                 <Home className="w-4 h-4" /> Openings
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 flex-1 flex flex-col">
-              <div className="grid grid-cols-2 gap-3">
+              {/* ... existing inputs ... */}
+               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Type</Label>
                   <Select 
@@ -347,19 +381,19 @@ export default function ConstructionCalculator() {
                       Construction Estimate
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="p-6 lg:p-10 space-y-8">
+                  <CardContent className="p-6 lg:p-10 space-y-8 overflow-y-auto h-[calc(100vh-200px)]">
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       {/* Material Counts */}
                       <div className="space-y-6">
                         <h3 className="text-lg font-display font-semibold text-foreground border-b border-primary/50 pb-2 inline-block mb-2">Material Breakdown</h3>
                         
-                        <div className="space-y-4">
+                        <div className="space-y-3">
                           <div className="flex justify-between items-center p-3 bg-muted/30 rounded hover:bg-muted/50 transition-colors">
                              <span className="font-medium">2x4 Lumber</span>
                              <div className="text-right">
                                <div className="text-xl font-bold text-primary">{results.total2x4Pieces}</div>
-                               <div className="text-xs text-muted-foreground">Studs, Plates, Cripples</div>
+                               <div className="text-xs text-muted-foreground">Studs, Plates</div>
                              </div>
                           </div>
 
@@ -367,7 +401,7 @@ export default function ConstructionCalculator() {
                              <span className="font-medium">2x6 Lumber</span>
                              <div className="text-right">
                                <div className="text-xl font-bold text-primary">{results.total2x6Pieces}</div>
-                               <div className="text-xs text-muted-foreground">Headers, Joists</div>
+                               <div className="text-xs text-muted-foreground">Headers, Joists, Rafters</div>
                              </div>
                           </div>
 
@@ -378,35 +412,66 @@ export default function ConstructionCalculator() {
                                <div className="text-xs text-muted-foreground">Panels</div>
                              </div>
                           </div>
+
+                          <div className="flex justify-between items-center p-3 bg-muted/30 rounded hover:bg-muted/50 transition-colors">
+                             <span className="font-medium">Roof Sheathing</span>
+                             <div className="text-right">
+                               <div className="text-xl font-bold text-primary">{results.plywoodPieces}</div>
+                               <div className="text-xs text-muted-foreground">4x8 Sheets</div>
+                             </div>
+                          </div>
+
+                          <div className="flex justify-between items-center p-3 bg-muted/30 rounded hover:bg-muted/50 transition-colors">
+                             <span className="font-medium">Roof Shingles</span>
+                             <div className="text-right">
+                               <div className="text-xl font-bold text-primary">{results.shingleBundles}</div>
+                               <div className="text-xs text-muted-foreground">Bundles</div>
+                             </div>
+                          </div>
+
+                          <div className="flex justify-between items-center p-3 bg-muted/30 rounded hover:bg-muted/50 transition-colors">
+                             <span className="font-medium">Concrete</span>
+                             <div className="text-right">
+                               <div className="text-xl font-bold text-primary">{results.concreteYards}</div>
+                               <div className="text-xs text-muted-foreground">Cubic Yards</div>
+                             </div>
+                          </div>
                         </div>
                       </div>
 
                       {/* Stats */}
                       <div className="space-y-6">
-                         <h3 className="text-lg font-display font-semibold text-foreground border-b border-primary/50 pb-2 inline-block mb-2">Dimensions</h3>
+                         <h3 className="text-lg font-display font-semibold text-foreground border-b border-primary/50 pb-2 inline-block mb-2">Dimensions & Cost</h3>
                          <div className="grid grid-cols-2 gap-4">
                             <div className="bg-card border p-4 rounded text-center">
-                              <div className="text-2xl font-display font-bold">{results.wallArea.toFixed(1)}</div>
-                              <div className="text-xs text-muted-foreground uppercase tracking-wider">Wall Area (sq ft)</div>
+                              <div className="text-xl font-display font-bold">{results.wallArea.toFixed(0)}</div>
+                              <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Wall SqFt</div>
                             </div>
                             <div className="bg-card border p-4 rounded text-center">
-                              <div className="text-2xl font-display font-bold">{results.totalOpeningArea.toFixed(1)}</div>
-                              <div className="text-xs text-muted-foreground uppercase tracking-wider">Opening Area (sq ft)</div>
+                              <div className="text-xl font-display font-bold">{results.roofArea.toFixed(0)}</div>
+                              <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Roof SqFt</div>
                             </div>
                          </div>
-                      </div>
-                    </div>
 
-                    <Separator />
-
-                    {/* Total Cost */}
-                    <div className="bg-primary/10 border border-primary/20 rounded-xl p-6 flex flex-col md:flex-row justify-between items-center gap-4">
-                      <div className="text-center md:text-left">
-                        <div className="text-sm font-medium text-primary uppercase tracking-widest">Estimated Project Cost</div>
-                        <div className="text-xs text-muted-foreground">Materials only. Labor/waste not included.</div>
-                      </div>
-                      <div className="text-4xl md:text-5xl font-display font-bold text-primary tracking-tight">
-                        ${results.totalCost.toFixed(2)}
+                         <div className="space-y-2 mt-4">
+                            <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">Lumber:</span>
+                                <span>${(results.cost2x4 + results.cost2x6).toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">Concrete:</span>
+                                <span>${results.costConcrete.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">Roofing:</span>
+                                <span>${(results.costPlywood + results.costShingles).toFixed(2)}</span>
+                            </div>
+                            <Separator />
+                            <div className="flex justify-between font-bold text-primary pt-2">
+                                <span>Total Est:</span>
+                                <span>${results.totalCost.toFixed(2)}</span>
+                            </div>
+                         </div>
                       </div>
                     </div>
 

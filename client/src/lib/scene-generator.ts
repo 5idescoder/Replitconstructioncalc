@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Dimensions, Opening, COLORS, LUMBER_DIMENSIONS } from './construction-types';
 
+// Helper to create lumber meshes
 function createLumber(position: THREE.Vector3, rotation: THREE.Vector3, dimensions: THREE.Vector3, type: string) {
   const geometry = new THREE.BoxGeometry(dimensions.x, dimensions.y, dimensions.z);
   const material = new THREE.MeshStandardMaterial({
@@ -11,7 +12,189 @@ function createLumber(position: THREE.Vector3, rotation: THREE.Vector3, dimensio
   const mesh = new THREE.Mesh(geometry, material);
   mesh.position.copy(position);
   mesh.rotation.setFromVector3(rotation);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
   return mesh;
+}
+
+function createFoundation(length: number, width: number) {
+  const group = new THREE.Group();
+  
+  // Slab: 4 inches thick
+  const slabThickness = 4 / 12; 
+  const slabGeom = new THREE.BoxGeometry(length + 4/12, slabThickness, width + 4/12); // extend 2" past walls
+  const slabMat = new THREE.MeshStandardMaterial({ 
+    color: '#555555', 
+    roughness: 0.9,
+    metalness: 0.1 
+  });
+  const slab = new THREE.Mesh(slabGeom, slabMat);
+  slab.position.set(0, -slabThickness/2, 0);
+  slab.receiveShadow = true;
+  group.add(slab);
+
+  // Footing Outline (Visual only, below slab)
+  // ... keep it simple, just the slab for now is good for "Foundation"
+  
+  return group;
+}
+
+function createRoof(dimensions: Dimensions) {
+  const group = new THREE.Group();
+  const { length, width, height, roofPitch, overhang } = dimensions;
+  
+  // Roof Parameters
+  const pitchRatio = roofPitch / 12;
+  const run = width / 2;
+  const rise = run * pitchRatio;
+  const overhangFt = overhang / 12;
+  
+  const wallTopY = height;
+  const ridgeY = wallTopY + rise; // Peak height relative to top plate
+  
+  // 1. Ridge Beam
+  const ridgeDepth = LUMBER_DIMENSIONS.ridge.height / 12; // 7.25" / 12
+  const ridgeWidth = LUMBER_DIMENSIONS.ridge.width / 12;  // 1.5" / 12
+  const ridgeLength = length + (2 * overhangFt); // Gable overhangs
+  
+  const ridgeMesh = createLumber(
+    new THREE.Vector3(0, ridgeY - (ridgeDepth/2), 0), // Ridge sits at peak? Usually rafters sit on top or against. 
+    // Standard: Rafters butt against ridge. Ridge top aligns with rafter top (roughly).
+    new THREE.Vector3(0, 0, 0),
+    new THREE.Vector3(ridgeLength, ridgeDepth, ridgeWidth),
+    'ridge'
+  );
+  group.add(ridgeMesh);
+  
+  // 2. Rafters
+  const rafterSpacing = 24 / 12; // 2 ft spacing
+  const rafterCountPerSide = Math.ceil(length / rafterSpacing) + 1;
+  
+  const rafterWidth = LUMBER_DIMENSIONS.rafter.width / 12; // 1.5"
+  const rafterDepth = LUMBER_DIMENSIONS.rafter.height / 12; // 5.5"
+  
+  // Angle of rafter
+  const angle = Math.atan(pitchRatio);
+  const rafterLen = (width/2 + overhangFt) / Math.cos(angle);
+  
+  // Create Rafters
+  for (let i = 0; i < rafterCountPerSide; i++) {
+      // Z position (along length)
+      // Start from -length/2, distribute evenly
+      // Actually, distribute based on spacing starting from one end
+      let zPos = -length/2 + (i * rafterSpacing);
+      if (zPos > length/2) zPos = length/2; // Clamp last one to end
+      
+      // Front/Back logic is X axis in our scene? 
+      // In `scene-generator.ts` walls:
+      // Front Wall (Z+), Back Wall (Z-). Length is along X axis?
+      // Let's check Wall generation:
+      // Front Wall pos: (0, h/2, width/2). Geometry Box(length, h, thick). So Length is X axis.
+      
+      // So Rafters span along Z axis (width), spaced along X axis (length).
+      
+      const xPos = -length/2 + (i * rafterSpacing);
+      // Correct spacing logic:
+      // Start at left edge (-length/2).
+      
+      // Right Side Rafters (Z+)
+      // Center of rafter span is width/4 roughly?
+      // Position: X = xPos. Y = midpoint of slope?
+      // Let's use geometry rotation.
+      // Pivot at ridge?
+      
+      const rafterGeo = new THREE.BoxGeometry(rafterWidth, rafterDepth, rafterLen);
+      // Shift center to one end to make rotation easier? 
+      // Default pivot is center.
+      
+      // Right Rafter (Z positive side)
+      const rightRafter = new THREE.Mesh(rafterGeo, new THREE.MeshStandardMaterial({ color: COLORS.rafter }));
+      // Calculate center position
+      // Horizontal center = (width/4 + overhang/2) ? No.
+      // It goes from Z=0 to Z=(width/2 + overhang).
+      // Center Z = (width/2 + overhang)/2.
+      // Y height: Starts at ridgeY, goes down.
+      // Midpoint Y = ridgeY - (rise/2).
+      
+      // Actually, simpler to position and rotate.
+      // At Z=0 (Ridge), Y=ridgeY.
+      // Rotate -angle around X axis.
+      
+      rightRafter.rotation.x = angle;
+      // Offset position to align with ridge
+      // Center of rotated rafter:
+      const zOffset = (width/2 + overhangFt) / 2; 
+      const yOffset = (rise + (overhangFt * pitchRatio)) / 2; // Total rise including overhang
+      
+      rightRafter.position.set(xPos, ridgeY - yOffset, zOffset);
+      group.add(rightRafter);
+      
+      // Left Rafter (Z negative side)
+      const leftRafter = new THREE.Mesh(rafterGeo, new THREE.MeshStandardMaterial({ color: COLORS.rafter }));
+      leftRafter.rotation.x = -angle;
+      leftRafter.position.set(xPos, ridgeY - yOffset, -zOffset);
+      group.add(leftRafter);
+  }
+
+  // 3. Ceiling Joists (Ties)
+  // Span across width (Z axis), connecting top plates.
+  const joistDepth = LUMBER_DIMENSIONS.joist.height / 12;
+  const joistWidth = LUMBER_DIMENSIONS.joist.width / 12;
+  
+  for (let i = 0; i < rafterCountPerSide; i++) {
+      const xPos = -length/2 + (i * rafterSpacing);
+      const joist = createLumber(
+          new THREE.Vector3(xPos, height + (joistDepth/2), 0),
+          new THREE.Vector3(Math.PI/2, 0, 0), // Rotate to span Z
+          new THREE.Vector3(joistWidth, width, joistDepth), // X=width(1.5), Y=length(span), Z=depth(5.5)
+          'joist'
+      );
+      group.add(joist);
+  }
+  
+  // 4. Roof Sheathing/Shingles (Visual Plane)
+  const roofPlaneGeo = new THREE.PlaneGeometry(length + (2*overhangFt), rafterLen);
+  const roofMat = new THREE.MeshStandardMaterial({ 
+      color: '#333333', 
+      side: THREE.DoubleSide,
+      roughness: 0.9 
+  });
+  
+  // Right Slope
+  const rightRoof = new THREE.Mesh(roofPlaneGeo, roofMat);
+  rightRoof.rotation.x = angle + (Math.PI/2); // Plane is XY, rotate to slope
+  rightRoof.rotation.y = Math.PI/2; // Rotate to align length with X?
+  // Wait, Plane(width, height).
+  // We want Width = Length of house. Height = Rafter Length.
+  // Plane is created in XY plane.
+  // Rotate X = -90 (flat). Then +/- angle.
+  
+  // Let's construct carefully.
+  // Plane aligned with slope.
+  // Rotation around X axis (slope).
+  
+  const roofCoverRight = new THREE.Mesh(
+      new THREE.BoxGeometry(length + (2*overhangFt), 0.05, rafterLen), // Thin box
+      roofMat
+  );
+  // Center
+  const zOffsetRoof = (width/2 + overhangFt) / 2;
+  const yOffsetRoof = (rise + (overhangFt * pitchRatio)) / 2;
+  
+  roofCoverRight.position.set(0, ridgeY - yOffsetRoof + (rafterDepth/2), zOffsetRoof); // Sit on top of rafters
+  roofCoverRight.rotation.x = angle;
+  group.add(roofCoverRight);
+  
+  const roofCoverLeft = new THREE.Mesh(
+      new THREE.BoxGeometry(length + (2*overhangFt), 0.05, rafterLen), 
+      roofMat
+  );
+  roofCoverLeft.position.set(0, ridgeY - yOffsetRoof + (rafterDepth/2), -zOffsetRoof);
+  roofCoverLeft.rotation.x = -angle;
+  group.add(roofCoverLeft);
+
+
+  return group;
 }
 
 function createOpeningFrame(opening: Opening, wallData: any, height: number) {
@@ -20,9 +203,6 @@ function createOpeningFrame(opening: Opening, wallData: any, height: number) {
   const { start, end, normal, wallLength } = wallData;
   
   const relativeLength = wallLength;
-  // Just use position directly if it's relative to start, or logic from original
-  // Original: const t = opening.position / relativeLength;
-  // But wait, opening.position is in feet from left.
   const t = opening.position / relativeLength;
   const position = new THREE.Vector3().lerpVectors(start, end, t);
   
@@ -315,21 +495,19 @@ export function generateSceneGroup(dimensions: Dimensions, openings: Opening[]) 
   const wallHeight = height;
 
   // --- Exterior Shell (Translucent for visualization) ---
+  // Make walls semi-transparent to see framing
   const wallMaterial = new THREE.MeshStandardMaterial({ 
     color: '#808080',
     transparent: true,
-    opacity: 0.1 
+    opacity: 0.05, // Very transparent
+    side: THREE.DoubleSide
   });
 
   // Walls
   const walls = [
-    // Front Wall (Z+)
     { geometry: new THREE.BoxGeometry(length, wallHeight, wallThickness), position: new THREE.Vector3(0, wallHeight / 2, width / 2 + wallThickness / 2), rotation: 0 }, 
-    // Back Wall (Z-)
     { geometry: new THREE.BoxGeometry(length, wallHeight, wallThickness), position: new THREE.Vector3(0, wallHeight / 2, -width / 2 - wallThickness / 2), rotation: 0 }, 
-    // Right Wall (X+)
     { geometry: new THREE.BoxGeometry(width, wallHeight, wallThickness), position: new THREE.Vector3(length / 2 + wallThickness / 2, wallHeight / 2, 0), rotation: Math.PI / 2 }, 
-    // Left Wall (X-)
     { geometry: new THREE.BoxGeometry(width, wallHeight, wallThickness), position: new THREE.Vector3(-length / 2 - wallThickness / 2, wallHeight / 2, 0), rotation: Math.PI / 2 }  
   ];
 
@@ -340,19 +518,16 @@ export function generateSceneGroup(dimensions: Dimensions, openings: Opening[]) 
     group.add(mesh);
   });
 
-  // Floor (Opaque)
-  const floorGeometry = new THREE.BoxGeometry(length, wallThickness, width);
-  const floorMaterial = new THREE.MeshStandardMaterial({ color: '#404040' });
-  const floorMesh = new THREE.Mesh(floorGeometry, floorMaterial);
-  floorMesh.position.set(0, -wallThickness / 2, 0);
-  group.add(floorMesh);
+  // Floor (Opaque) - replaced by Foundation
+  // const floorGeometry = new THREE.BoxGeometry(length, wallThickness, width);
+  // const floorMaterial = new THREE.MeshStandardMaterial({ color: '#404040' });
+  // const floorMesh = new THREE.Mesh(floorGeometry, floorMaterial);
+  // floorMesh.position.set(0, -wallThickness / 2, 0);
+  // group.add(floorMesh);
+  group.add(createFoundation(length, width));
 
-  // Ceiling (Translucent)
-  const ceilingGeometry = new THREE.BoxGeometry(length, wallThickness, width);
-  const ceilingMaterial = new THREE.MeshStandardMaterial({ color: '#A9A9A9', transparent: true, opacity: 0.2 });
-  const ceilingMesh = new THREE.Mesh(ceilingGeometry, ceilingMaterial);
-  ceilingMesh.position.set(0, height + wallThickness / 2, 0);
-  group.add(ceilingMesh);
+  // Roof
+  group.add(createRoof(dimensions));
 
   // --- Framing and Openings ---
   openings.forEach(opening => {
