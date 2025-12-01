@@ -22,11 +22,29 @@ export interface Prices {
   concrete: number; // Per cubic yard
 }
 
+export interface WallElement {
+  id: string;
+  type: 'exterior' | 'interior';
+  name: string;
+  length: number; // For interior walls
+  height: number;
+  // Position relative to center or corner? Let's stick to "Position from Center" for consistency with threejs group
+  // OR relative to a corner (0,0 top-left of floorplan)
+  // For simplicity in this refactor, let's keep Exterior walls "Fixed" but wrapped in this type
+  // Interior walls: startPoint, endPoint? Or Center + Rotation?
+  // Let's use Center + Rotation for ThreeJS ease
+  position: { x: number, y: number, z: number }; 
+  rotation: number; // radians
+  
+  // For UI "Builder" mode logic:
+  isLocked?: boolean; // Exterior walls are locked to room dimensions
+}
+
 export interface Opening {
   id: string;
   type: 'window' | 'door';
-  wall: 'front' | 'right' | 'back' | 'left';
-  position: number;
+  wallId: string; // Link to WallElement.id
+  position: number; // Distance from start of wall (left side)
   width: number;
   height: number;
   floorHeight: number;
@@ -62,9 +80,9 @@ export const LUMBER_DIMENSIONS = {
   stud: { width: 1.5, height: 3.5 },
   beam: { width: 1.5, height: 5.5 },
   plate: { width: 1.5, height: 3.5 },
-  joist: { width: 1.5, height: 7.25 }, // 2x8 for floor joists often, but let's stick to 2x6 for consistency or upgrade? The user asked for "Joyce's" (Joists). Let's assume 2x8 for floor, 2x6 for ceiling. Let's stick to 2x6 (1.5 x 5.5) for simplicity unless specified.
-  header: { width: 3.0, height: 5.5 }, // Double 2x6
+  joist: { width: 1.5, height: 7.25 }, 
+  header: { width: 3.0, height: 5.5 }, 
   sill: { width: 1.5, height: 3.5 },
-  rafter: { width: 1.5, height: 5.5 }, // 2x6 rafters
-  ridge: { width: 1.5, height: 7.25 }  // 2x8 ridge
+  rafter: { width: 1.5, height: 5.5 }, 
+  ridge: { width: 1.5, height: 7.25 }  
 };

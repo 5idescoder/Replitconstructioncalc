@@ -2,21 +2,22 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Environment, ContactShadows } from "@react-three/drei";
 import { useMemo, useEffect } from "react";
 import * as THREE from "three";
-import { Dimensions, Opening } from "@/lib/construction-types";
+import { Dimensions, Opening, WallElement } from "@/lib/construction-types";
 import { generateSceneGroup } from "@/lib/scene-generator";
 
 interface ScenePreviewProps {
   dimensions: Dimensions;
+  walls: WallElement[];
   openings: Opening[];
 }
 
-export default function ScenePreview({ dimensions, openings }: ScenePreviewProps) {
-  // Re-generate the scene group whenever dimensions or openings change
+export default function ScenePreview({ dimensions, walls, openings }: ScenePreviewProps) {
+  // Re-generate the scene group whenever inputs change
   const sceneGroup = useMemo(() => {
-    return generateSceneGroup(dimensions, openings);
-  }, [dimensions, openings]);
+    return generateSceneGroup(dimensions, walls, openings);
+  }, [dimensions, walls, openings]);
 
-  // Cleanup resources when sceneGroup changes to prevent memory leaks
+  // Cleanup resources
   useEffect(() => {
     return () => {
       sceneGroup.traverse((obj) => {
@@ -33,7 +34,7 @@ export default function ScenePreview({ dimensions, openings }: ScenePreviewProps
   }, [sceneGroup]);
 
   return (
-    <div className="w-full h-full min-h-[400px] bg-zinc-950 rounded-lg overflow-hidden border border-zinc-800 shadow-inner relative">
+    <div className="w-full h-full bg-zinc-950 shadow-inner relative">
       <Canvas camera={{ position: [30, 20, 30], fov: 50 }} shadows>
         <color attach="background" args={['#1a1a1a']} />
         <fog attach="fog" args={['#1a1a1a', 30, 150]} />
