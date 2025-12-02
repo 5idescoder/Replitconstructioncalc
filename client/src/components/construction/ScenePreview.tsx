@@ -13,10 +13,13 @@ interface ScenePreviewProps {
   openings: Opening[];
   showRoof?: boolean;
   onRoofToggle?: (show: boolean) => void;
+  showCabinets?: boolean;
+  onCabinetsToggle?: (show: boolean) => void;
 }
 
-export default function ScenePreview({ dimensions, walls, openings, showRoof = true, onRoofToggle }: ScenePreviewProps) {
+export default function ScenePreview({ dimensions, walls, openings, showRoof = true, onRoofToggle, showCabinets = true, onCabinetsToggle }: ScenePreviewProps) {
   const [localShowRoof, setLocalShowRoof] = useState(showRoof);
+  const [localShowCabinets, setLocalShowCabinets] = useState(showCabinets);
   const [showHelpText, setShowHelpText] = useState(true);
 
   const handleRoofToggle = () => {
@@ -25,10 +28,16 @@ export default function ScenePreview({ dimensions, walls, openings, showRoof = t
     onRoofToggle?.(newValue);
   };
 
+  const handleCabinetsToggle = () => {
+    const newValue = !localShowCabinets;
+    setLocalShowCabinets(newValue);
+    onCabinetsToggle?.(newValue);
+  };
+
   // Re-generate the scene group whenever inputs change
   const sceneGroup = useMemo(() => {
-    return generateSceneGroup(dimensions, walls, openings, localShowRoof);
-  }, [dimensions, walls, openings, localShowRoof]);
+    return generateSceneGroup(dimensions, walls, openings, localShowRoof, localShowCabinets);
+  }, [dimensions, walls, openings, localShowRoof, localShowCabinets]);
 
   // Cleanup resources
   useEffect(() => {
@@ -86,6 +95,16 @@ export default function ScenePreview({ dimensions, walls, openings, showRoof = t
         >
           {localShowRoof ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
           {localShowRoof ? 'Hide' : 'Show'} Roof
+        </Button>
+        <Button
+          size="sm"
+          variant={localShowCabinets ? "default" : "secondary"}
+          onClick={handleCabinetsToggle}
+          className="gap-2"
+          data-testid="button-toggle-cabinets"
+        >
+          {localShowCabinets ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+          {localShowCabinets ? 'Hide' : 'Show'} Cabinets
         </Button>
       </div>
       
