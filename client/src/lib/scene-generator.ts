@@ -331,15 +331,76 @@ function createFramingForWall(wall: WallElement) {
   return group;
 }
 
-export function generateSceneGroup(dimensions: Dimensions, walls: WallElement[], openings: Opening[]) {
+function createCamper(x: number, z: number) {
+  const group = new THREE.Group();
+  
+  // RV/Camper body - simple box
+  const bodyGeo = new THREE.BoxGeometry(8, 6, 20);
+  const bodyMat = new THREE.MeshStandardMaterial({ 
+    color: '#e8e8e8', 
+    roughness: 0.3,
+    metalness: 0.4
+  });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.position.y = 3;
+  body.castShadow = true;
+  body.receiveShadow = true;
+  group.add(body);
+  
+  // Windows
+  const windowGeo = new THREE.BoxGeometry(2, 1.2, 0.1);
+  const windowMat = new THREE.MeshStandardMaterial({ 
+    color: '#87CEEB',
+    transparent: true,
+    opacity: 0.7,
+    metalness: 0.8
+  });
+  
+  for (let i = 0; i < 3; i++) {
+    const window1 = new THREE.Mesh(windowGeo, windowMat);
+    window1.position.set(-3.5, 3.5, -6 + (i * 6));
+    group.add(window1);
+    
+    const window2 = new THREE.Mesh(windowGeo, windowMat);
+    window2.position.set(3.5, 3.5, -6 + (i * 6));
+    group.add(window2);
+  }
+  
+  // Hitch (front)
+  const hitchGeo = new THREE.BoxGeometry(1, 1, 2);
+  const hitchMat = new THREE.MeshStandardMaterial({ color: '#444444' });
+  const hitch = new THREE.Mesh(hitchGeo, hitchMat);
+  hitch.position.set(0, 0.5, 10);
+  group.add(hitch);
+  
+  // Wheels
+  const wheelGeo = new THREE.CylinderGeometry(0.8, 0.8, 0.5, 16);
+  const wheelMat = new THREE.MeshStandardMaterial({ color: '#222222' });
+  
+  for (let side of [-3.5, 3.5]) {
+    for (let z of [-5, 5]) {
+      const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+      wheel.rotation.z = Math.PI / 2;
+      wheel.position.set(side, 0.8, z);
+      group.add(wheel);
+    }
+  }
+  
+  group.position.set(x, 0, z);
+  return group;
+}
+
+export function generateSceneGroup(dimensions: Dimensions, walls: WallElement[], openings: Opening[], showRoof: boolean = true) {
   const group = new THREE.Group();
   const { length, width } = dimensions;
 
   // Foundation
   group.add(createFoundation(length, width));
 
-  // Roof
-  group.add(createRoof(dimensions));
+  // Roof (conditional)
+  if (showRoof) {
+    group.add(createRoof(dimensions));
+  }
 
   // Walls
   walls.forEach(wall => {
@@ -367,6 +428,13 @@ export function generateSceneGroup(dimensions: Dimensions, walls: WallElement[],
       
       group.add(wallGroup);
   });
+
+  // Add campers on the site
+  const camper1 = createCamper(-15, -15);
+  group.add(camper1);
+  
+  const camper2 = createCamper(15, 15);
+  group.add(camper2);
 
   return group;
 }

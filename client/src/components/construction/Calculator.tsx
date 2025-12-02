@@ -55,6 +55,7 @@ export default function ConstructionCalculator() {
     walls: true,
     cabinets: false
   });
+  const [showRoof, setShowRoof] = useState(true);
 
   // --- Initialization ---
   useEffect(() => {
@@ -352,7 +353,7 @@ export default function ConstructionCalculator() {
               
               {activeTab === 'preview' && (
                   <div className="flex-1 relative">
-                      <ScenePreview dimensions={dimensions} walls={walls} openings={openings} />
+                      <ScenePreview dimensions={dimensions} walls={walls} openings={openings} showRoof={showRoof} onRoofToggle={setShowRoof} />
                       
                       {/* Inspector Overlay (Right Side) */}
                       {selectedWall && (

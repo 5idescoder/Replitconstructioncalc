@@ -1,21 +1,33 @@
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Environment, ContactShadows } from "@react-three/drei";
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useState } from "react";
 import * as THREE from "three";
 import { Dimensions, Opening, WallElement } from "@/lib/construction-types";
 import { generateSceneGroup } from "@/lib/scene-generator";
+import { Button } from "@/components/ui/button";
+import { Eye, EyeOff } from "lucide-react";
 
 interface ScenePreviewProps {
   dimensions: Dimensions;
   walls: WallElement[];
   openings: Opening[];
+  showRoof?: boolean;
+  onRoofToggle?: (show: boolean) => void;
 }
 
-export default function ScenePreview({ dimensions, walls, openings }: ScenePreviewProps) {
+export default function ScenePreview({ dimensions, walls, openings, showRoof = true, onRoofToggle }: ScenePreviewProps) {
+  const [localShowRoof, setLocalShowRoof] = useState(showRoof);
+
+  const handleRoofToggle = () => {
+    const newValue = !localShowRoof;
+    setLocalShowRoof(newValue);
+    onRoofToggle?.(newValue);
+  };
+
   // Re-generate the scene group whenever inputs change
   const sceneGroup = useMemo(() => {
-    return generateSceneGroup(dimensions, walls, openings);
-  }, [dimensions, walls, openings]);
+    return generateSceneGroup(dimensions, walls, openings, localShowRoof);
+  }, [dimensions, walls, openings, localShowRoof]);
 
   // Cleanup resources
   useEffect(() => {
@@ -63,8 +75,20 @@ export default function ScenePreview({ dimensions, walls, openings }: ScenePrevi
         <Environment preset="city" />
       </Canvas>
       
+      <div className="absolute top-4 right-4 flex gap-2 z-10">
+        <Button
+          size="sm"
+          variant={localShowRoof ? "default" : "secondary"}
+          onClick={handleRoofToggle}
+          className="gap-2"
+        >
+          {localShowRoof ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+          {localShowRoof ? 'Hide' : 'Show'} Roof
+        </Button>
+      </div>
+      
       <div className="absolute bottom-4 right-4 bg-zinc-900/80 backdrop-blur p-2 rounded text-xs text-zinc-400 pointer-events-none select-none">
-        Left Click: Rotate • Right Click: Pan • Scroll: Zoom
+        Left Click: Rotate • Right Click: Pan • Scroll: Zoom • Campers: Draggable
       </div>
     </div>
   );
