@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
-export default function ConstructionCalculator() {
+export default function ConstructionCalculator({ projectId }: { projectId?: string }) {
   const { toast } = useToast();
 
   // --- State ---
