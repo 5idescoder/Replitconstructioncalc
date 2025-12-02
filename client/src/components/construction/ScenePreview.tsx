@@ -13,10 +13,13 @@ interface ScenePreviewProps {
   openings: Opening[];
   showRoof?: boolean;
   onRoofToggle?: (show: boolean) => void;
+  showCampers?: boolean;
+  onCampersToggle?: (show: boolean) => void;
 }
 
-export default function ScenePreview({ dimensions, walls, openings, showRoof = true, onRoofToggle }: ScenePreviewProps) {
+export default function ScenePreview({ dimensions, walls, openings, showRoof = true, onRoofToggle, showCampers = true, onCampersToggle }: ScenePreviewProps) {
   const [localShowRoof, setLocalShowRoof] = useState(showRoof);
+  const [localShowCampers, setLocalShowCampers] = useState(showCampers);
 
   const handleRoofToggle = () => {
     const newValue = !localShowRoof;
@@ -24,10 +27,16 @@ export default function ScenePreview({ dimensions, walls, openings, showRoof = t
     onRoofToggle?.(newValue);
   };
 
+  const handleCampersToggle = () => {
+    const newValue = !localShowCampers;
+    setLocalShowCampers(newValue);
+    onCampersToggle?.(newValue);
+  };
+
   // Re-generate the scene group whenever inputs change
   const sceneGroup = useMemo(() => {
-    return generateSceneGroup(dimensions, walls, openings, localShowRoof);
-  }, [dimensions, walls, openings, localShowRoof]);
+    return generateSceneGroup(dimensions, walls, openings, localShowRoof, localShowCampers);
+  }, [dimensions, walls, openings, localShowRoof, localShowCampers]);
 
   // Cleanup resources
   useEffect(() => {
@@ -81,9 +90,20 @@ export default function ScenePreview({ dimensions, walls, openings, showRoof = t
           variant={localShowRoof ? "default" : "secondary"}
           onClick={handleRoofToggle}
           className="gap-2"
+          data-testid="button-toggle-roof"
         >
           {localShowRoof ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
           {localShowRoof ? 'Hide' : 'Show'} Roof
+        </Button>
+        <Button
+          size="sm"
+          variant={localShowCampers ? "default" : "secondary"}
+          onClick={handleCampersToggle}
+          className="gap-2"
+          data-testid="button-toggle-campers"
+        >
+          {localShowCampers ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+          {localShowCampers ? 'Hide' : 'Show'} Campers
         </Button>
       </div>
       
