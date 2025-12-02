@@ -13,13 +13,13 @@ interface ScenePreviewProps {
   openings: Opening[];
   showRoof?: boolean;
   onRoofToggle?: (show: boolean) => void;
-  showCampers?: boolean;
-  onCampersToggle?: (show: boolean) => void;
+  showCabinets?: boolean;
+  onCabinetsToggle?: (show: boolean) => void;
 }
 
-export default function ScenePreview({ dimensions, walls, openings, showRoof = true, onRoofToggle, showCampers = true, onCampersToggle }: ScenePreviewProps) {
+export default function ScenePreview({ dimensions, walls, openings, showRoof = true, onRoofToggle, showCabinets = true, onCabinetsToggle }: ScenePreviewProps) {
   const [localShowRoof, setLocalShowRoof] = useState(showRoof);
-  const [localShowCampers, setLocalShowCampers] = useState(showCampers);
+  const [localShowCabinets, setLocalShowCabinets] = useState(showCabinets);
   const [showHelpText, setShowHelpText] = useState(true);
 
   const handleRoofToggle = () => {
@@ -28,16 +28,16 @@ export default function ScenePreview({ dimensions, walls, openings, showRoof = t
     onRoofToggle?.(newValue);
   };
 
-  const handleCampersToggle = () => {
-    const newValue = !localShowCampers;
-    setLocalShowCampers(newValue);
-    onCampersToggle?.(newValue);
+  const handleCabinetsToggle = () => {
+    const newValue = !localShowCabinets;
+    setLocalShowCabinets(newValue);
+    onCabinetsToggle?.(newValue);
   };
 
   // Re-generate the scene group whenever inputs change
   const sceneGroup = useMemo(() => {
-    return generateSceneGroup(dimensions, walls, openings, localShowRoof, localShowCampers);
-  }, [dimensions, walls, openings, localShowRoof, localShowCampers]);
+    return generateSceneGroup(dimensions, walls, openings, localShowRoof, localShowCabinets);
+  }, [dimensions, walls, openings, localShowRoof, localShowCabinets]);
 
   // Cleanup resources
   useEffect(() => {
@@ -98,20 +98,20 @@ export default function ScenePreview({ dimensions, walls, openings, showRoof = t
         </Button>
         <Button
           size="sm"
-          variant={localShowCampers ? "default" : "secondary"}
-          onClick={handleCampersToggle}
+          variant={localShowCabinets ? "default" : "secondary"}
+          onClick={handleCabinetsToggle}
           className="gap-2"
-          data-testid="button-toggle-campers"
+          data-testid="button-toggle-cabinets"
         >
-          {localShowCampers ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-          {localShowCampers ? 'Hide' : 'Show'} Campers
+          {localShowCabinets ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+          {localShowCabinets ? 'Hide' : 'Show'} Cabinets
         </Button>
       </div>
       
       <div className="absolute bottom-4 right-4 flex flex-col gap-2">
         {showHelpText && (
           <div className="bg-zinc-900/80 backdrop-blur p-2 rounded text-xs text-zinc-400 pointer-events-none select-none">
-            Left Click: Rotate • Right Click: Pan • Scroll: Zoom • Campers: Draggable
+            Left Click: Rotate • Right Click: Pan • Scroll: Zoom
           </div>
         )}
         <Button
