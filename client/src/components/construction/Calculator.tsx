@@ -29,7 +29,8 @@ export default function ConstructionCalculator() {
     studLength: 8,
     beamLength: 8,
     roofPitch: 6, 
-    overhang: 12 
+    overhang: 12,
+    roofType: 'ridge'
   });
 
   const [prices, setPrices] = useState<Prices>({
@@ -266,6 +267,18 @@ export default function ConstructionCalculator() {
                                       <Label className="text-[10px]">Overhang</Label>
                                       <Input type="number" value={dimensions.overhang} onChange={e => setDimensions({...dimensions, overhang: +e.target.value})} className="h-7 text-xs" />
                                   </div>
+                              </div>
+                              <div className="space-y-1">
+                                  <Label className="text-[10px]">Roof Type</Label>
+                                  <Select value={dimensions.roofType || 'ridge'} onValueChange={(value) => setDimensions({...dimensions, roofType: value as 'ridge' | 'hipped'})}>
+                                      <SelectTrigger className="h-7 text-xs">
+                                          <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                          <SelectItem value="ridge">Ridge</SelectItem>
+                                          <SelectItem value="hipped">Hipped</SelectItem>
+                                      </SelectContent>
+                                  </Select>
                               </div>
                           </CollapsibleContent>
                       </Collapsible>
