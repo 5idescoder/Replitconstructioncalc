@@ -368,31 +368,41 @@ export default function ConstructionCalculator() {
                                   <div className="space-y-3">
                                       <div className="space-y-1">
                                           <Label className="text-xs">Length (ft)</Label>
-                                          <Input 
-                                            type="number" 
-                                            value={selectedWall.length} 
-                                            onChange={e => updateWall(selectedWall.id, { length: +e.target.value })} 
-                                            className="h-8"
-                                          />
-                                      </div>
-                                      <div className="grid grid-cols-2 gap-2">
-                                          <div className="space-y-1">
-                                              <Label className="text-xs">Pos X</Label>
-                                              <Input 
-                                                type="number" 
-                                                value={selectedWall.position.x} 
-                                                onChange={e => updateWall(selectedWall.id, { position: { ...selectedWall.position, x: +e.target.value } })} 
-                                                className="h-8"
+                                          <div className="flex gap-2 items-center">
+                                              <Slider 
+                                                min={1} max={30} step={0.5} 
+                                                value={[selectedWall.length]} 
+                                                onValueChange={([v]) => updateWall(selectedWall.id, { length: v })}
+                                                className="flex-1"
+                                                data-testid="slider-wall-length"
                                               />
+                                              <span className="text-xs w-10 text-right">{selectedWall.length.toFixed(1)}</span>
                                           </div>
-                                          <div className="space-y-1">
-                                              <Label className="text-xs">Pos Z</Label>
-                                              <Input 
-                                                type="number" 
-                                                value={selectedWall.position.z} 
-                                                onChange={e => updateWall(selectedWall.id, { position: { ...selectedWall.position, z: +e.target.value } })} 
-                                                className="h-8"
+                                      </div>
+                                      <div className="space-y-1">
+                                          <Label className="text-xs">Position X (ft)</Label>
+                                          <div className="flex gap-2 items-center">
+                                              <Slider 
+                                                min={-20} max={20} step={0.5} 
+                                                value={[selectedWall.position.x]} 
+                                                onValueChange={([v]) => updateWall(selectedWall.id, { position: { ...selectedWall.position, x: v } })}
+                                                className="flex-1"
+                                                data-testid="slider-wall-pos-x"
                                               />
+                                              <span className="text-xs w-10 text-right">{selectedWall.position.x.toFixed(1)}</span>
+                                          </div>
+                                      </div>
+                                      <div className="space-y-1">
+                                          <Label className="text-xs">Position Z (ft)</Label>
+                                          <div className="flex gap-2 items-center">
+                                              <Slider 
+                                                min={-20} max={20} step={0.5} 
+                                                value={[selectedWall.position.z]} 
+                                                onValueChange={([v]) => updateWall(selectedWall.id, { position: { ...selectedWall.position, z: v } })}
+                                                className="flex-1"
+                                                data-testid="slider-wall-pos-z"
+                                              />
+                                              <span className="text-xs w-10 text-right">{selectedWall.position.z.toFixed(1)}</span>
                                           </div>
                                       </div>
                                       <div className="space-y-1">
@@ -403,6 +413,7 @@ export default function ConstructionCalculator() {
                                                 value={[selectedWall.rotation]} 
                                                 onValueChange={([v]) => updateWall(selectedWall.id, { rotation: v })}
                                                 className="flex-1"
+                                                data-testid="slider-wall-rotation"
                                               />
                                               <span className="text-xs w-8 text-right">{(selectedWall.rotation * 180 / Math.PI).toFixed(0)}°</span>
                                           </div>
@@ -419,14 +430,32 @@ export default function ConstructionCalculator() {
                                                   <span className="text-xs font-medium capitalize">{op.type}</span>
                                                   <Trash2 className="w-3 h-3 cursor-pointer hover:text-destructive" onClick={() => setOpenings(openings.filter(x => x.id !== op.id))} />
                                               </div>
-                                              <div className="grid grid-cols-2 gap-2">
+                                              <div className="space-y-2">
                                                   <div className="space-y-1">
-                                                      <Label className="text-[9px]">Pos</Label>
-                                                      <Input className="h-6 text-[10px] px-1" type="number" value={op.position} onChange={e => updateOpening(op.id, { position: +e.target.value })} />
+                                                      <div className="flex justify-between items-center">
+                                                          <Label className="text-[9px]">Position</Label>
+                                                          <span className="text-[9px]">{op.position.toFixed(1)}</span>
+                                                      </div>
+                                                      <Slider 
+                                                        min={0} max={selectedWall.length} step={0.25} 
+                                                        value={[op.position]} 
+                                                        onValueChange={([v]) => updateOpening(op.id, { position: v })}
+                                                        className="h-1"
+                                                        data-testid={`slider-opening-pos-${op.id}`}
+                                                      />
                                                   </div>
                                                   <div className="space-y-1">
-                                                      <Label className="text-[9px]">Width</Label>
-                                                      <Input className="h-6 text-[10px] px-1" type="number" value={op.width} onChange={e => updateOpening(op.id, { width: +e.target.value })} />
+                                                      <div className="flex justify-between items-center">
+                                                          <Label className="text-[9px]">Width</Label>
+                                                          <span className="text-[9px]">{op.width.toFixed(1)}</span>
+                                                      </div>
+                                                      <Slider 
+                                                        min={0.5} max={6} step={0.25} 
+                                                        value={[op.width]} 
+                                                        onValueChange={([v]) => updateOpening(op.id, { width: v })}
+                                                        className="h-1"
+                                                        data-testid={`slider-opening-width-${op.id}`}
+                                                      />
                                                   </div>
                                               </div>
                                           </div>
