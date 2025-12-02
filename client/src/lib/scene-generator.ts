@@ -34,6 +34,11 @@ function createFoundation(length: number, width: number) {
 }
 
 function createRoof(dimensions: Dimensions) {
+  const roofType = dimensions.roofType || 'ridge';
+  return roofType === 'hipped' ? createHippedRoof(dimensions) : createRidgeRoof(dimensions);
+}
+
+function createRidgeRoof(dimensions: Dimensions) {
   const group = new THREE.Group();
   const { length, width, height, roofPitch, overhang } = dimensions;
   
@@ -126,6 +131,116 @@ function createRoof(dimensions: Dimensions) {
   roofCoverLeft.rotation.x = -angle;
   group.add(roofCoverLeft);
 
+  return group;
+}
+
+function createHippedRoof(dimensions: Dimensions) {
+  const group = new THREE.Group();
+  const { length, width, height, roofPitch, overhang } = dimensions;
+  
+  const pitchRatio = roofPitch / 12;
+  const run = width / 2;
+  const rise = run * pitchRatio;
+  const overhangFt = overhang / 12;
+  
+  const wallTopY = height;
+  const ridgeY = wallTopY + rise;
+  
+  // Ridge beam (shorter for hipped roof)
+  const ridgeDepth = LUMBER_DIMENSIONS.ridge.height / 12;
+  const ridgeWidth = LUMBER_DIMENSIONS.ridge.width / 12;
+  const ridgeLength = Math.max(length - (2 * (width/2 + overhangFt) * pitchRatio), 0.5);
+  
+  const ridgeMesh = createLumber(
+    new THREE.Vector3(0, ridgeY - (ridgeDepth/2), 0),
+    new THREE.Vector3(0, 0, 0),
+    new THREE.Vector3(ridgeLength, ridgeDepth, ridgeWidth),
+    'ridge'
+  );
+  group.add(ridgeMesh);
+  
+  // Rafters
+  const rafterSpacing = 24 / 12;
+  const rafterCountPerSide = Math.ceil(length / rafterSpacing) + 1;
+  const rafterWidth = LUMBER_DIMENSIONS.rafter.width / 12;
+  const rafterDepth = LUMBER_DIMENSIONS.rafter.height / 12;
+  const angle = Math.atan(pitchRatio);
+  const rafterLen = (width/2 + overhangFt) / Math.cos(angle);
+  
+  for (let i = 0; i < rafterCountPerSide; i++) {
+    const xPos = -length/2 + (i * rafterSpacing);
+    const rafterGeo = new THREE.BoxGeometry(rafterWidth, rafterDepth, rafterLen);
+    
+    const rightRafter = new THREE.Mesh(rafterGeo, new THREE.MeshStandardMaterial({ color: COLORS.rafter }));
+    rightRafter.rotation.x = angle;
+    const zOffset = (width/2 + overhangFt) / 2;
+    const yOffset = (rise + (overhangFt * pitchRatio)) / 2;
+    rightRafter.position.set(xPos, ridgeY - yOffset, zOffset);
+    group.add(rightRafter);
+    
+    const leftRafter = new THREE.Mesh(rafterGeo, new THREE.MeshStandardMaterial({ color: COLORS.rafter }));
+    leftRafter.rotation.x = -angle;
+    leftRafter.position.set(xPos, ridgeY - yOffset, -zOffset);
+    group.add(leftRafter);
+  }
+  
+  // Hip rafters (end rafters angled both ways)
+  const hipAngle = Math.atan(pitchRatio * Math.sqrt(2));
+  const hipRafterLen = ((length/2 + overhangFt) + (width/2 + overhangFt)) / Math.cos(hipAngle);
+  const hipRafterGeo = new THREE.BoxGeometry(rafterWidth, rafterDepth, hipRafterLen);
+  
+  for (let end of [-1, 1]) {
+    const hipRafter = new THREE.Mesh(hipRafterGeo, new THREE.MeshStandardMaterial({ color: COLORS.rafter }));
+    hipRafter.rotation.x = hipAngle;
+    hipRafter.rotation.z = end > 0 ? Math.PI / 4 : -Math.PI / 4;
+    const xPos = end * length / 2;
+    const yOffset = (rise + (overhangFt * pitchRatio)) / 2;
+    hipRafter.position.set(xPos, ridgeY - yOffset, 0);
+    group.add(hipRafter);
+  }
+  
+  // Ceiling joists
+  const joistDepth = LUMBER_DIMENSIONS.joist.height / 12;
+  const joistWidth = LUMBER_DIMENSIONS.joist.width / 12;
+  
+  for (let i = 0; i < rafterCountPerSide; i++) {
+    const xPos = -length/2 + (i * rafterSpacing);
+    const joist = createLumber(
+      new THREE.Vector3(xPos, height + (joistDepth/2), 0),
+      new THREE.Vector3(Math.PI/2, 0, 0),
+      new THREE.Vector3(joistWidth, width, joistDepth),
+      'joist'
+    );
+    group.add(joist);
+  }
+  
+  // Roof sheathing
+  const roofMat = new THREE.MeshStandardMaterial({
+    color: '#333333',
+    side: THREE.DoubleSide,
+    roughness: 0.9
+  });
+  
+  const zOffsetRoof = (width/2 + overhangFt) / 2;
+  const yOffsetRoof = (rise + (overhangFt * pitchRatio)) / 2;
+  
+  // Side panels
+  const roofCoverRight = new THREE.Mesh(
+    new THREE.BoxGeometry(length + (2*overhangFt), 0.05, rafterLen),
+    roofMat
+  );
+  roofCoverRight.position.set(0, ridgeY - yOffsetRoof + (rafterDepth/2), zOffsetRoof);
+  roofCoverRight.rotation.x = angle;
+  group.add(roofCoverRight);
+  
+  const roofCoverLeft = new THREE.Mesh(
+    new THREE.BoxGeometry(length + (2*overhangFt), 0.05, rafterLen),
+    roofMat
+  );
+  roofCoverLeft.position.set(0, ridgeY - yOffsetRoof + (rafterDepth/2), -zOffsetRoof);
+  roofCoverLeft.rotation.x = -angle;
+  group.add(roofCoverLeft);
+  
   return group;
 }
 

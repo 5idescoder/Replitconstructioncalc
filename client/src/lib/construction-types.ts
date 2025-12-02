@@ -11,6 +11,7 @@ export interface Dimensions {
   beamLength: number;
   roofPitch: number; // x/12
   overhang: number; // inches
+  roofType?: 'ridge' | 'hipped'; // roof type
 }
 
 export interface Prices {
