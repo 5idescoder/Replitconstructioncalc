@@ -390,7 +390,7 @@ function createCamper(x: number, z: number) {
   return group;
 }
 
-export function generateSceneGroup(dimensions: Dimensions, walls: WallElement[], openings: Opening[], showRoof: boolean = true, showCampers: boolean = true) {
+export function generateSceneGroup(dimensions: Dimensions, walls: WallElement[], openings: Opening[], showRoof: boolean = true, showCabinets: boolean = true) {
   const group = new THREE.Group();
   const { length, width } = dimensions;
 
@@ -429,8 +429,8 @@ export function generateSceneGroup(dimensions: Dimensions, walls: WallElement[],
       group.add(wallGroup);
   });
 
-  // Add campers on the site (conditional)
-  if (showCampers) {
+  // Add campers on the site (conditional - controlled by showCabinets toggle)
+  if (showCabinets) {
     const camper1 = createCamper(-15, -15);
     group.add(camper1);
     
