@@ -57,6 +57,7 @@ export default function ConstructionCalculator() {
   });
   const [showRoof, setShowRoof] = useState(true);
   const [showCampers, setShowCampers] = useState(true);
+  const [showInspector, setShowInspector] = useState(true);
 
   // --- Initialization ---
   useEffect(() => {
@@ -357,7 +358,7 @@ export default function ConstructionCalculator() {
                       <ScenePreview dimensions={dimensions} walls={walls} openings={openings} showRoof={showRoof} onRoofToggle={setShowRoof} showCampers={showCampers} onCampersToggle={setShowCampers} />
                       
                       {/* Inspector Overlay (Right Side) */}
-                      {selectedWall && (
+                      {selectedWall && showInspector && (
                           <div className="absolute top-4 right-4 w-72 bg-card/95 backdrop-blur border border-border/50 rounded-lg shadow-xl p-4 flex flex-col gap-4">
                               <div className="flex justify-between items-center pb-2 border-b">
                                   <span className="font-semibold text-sm">{selectedWall.name} Properties</span>
@@ -467,6 +468,22 @@ export default function ConstructionCalculator() {
                               </div>
 
                           </div>
+                      )}
+                      
+                      {/* Collapse Inspector Button */}
+                      {selectedWall && (
+                          <button
+                            onClick={() => setShowInspector(!showInspector)}
+                            className="absolute top-4 right-4 p-2 rounded-md hover:bg-zinc-800/50 transition-colors"
+                            data-testid="button-collapse-inspector"
+                            title={showInspector ? "Collapse inspector" : "Expand inspector"}
+                          >
+                            {showInspector ? (
+                              <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                            ) : (
+                              <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                            )}
+                          </button>
                       )}
                   </div>
               )}

@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { Dimensions, Opening, WallElement } from "@/lib/construction-types";
 import { generateSceneGroup } from "@/lib/scene-generator";
 import { Button } from "@/components/ui/button";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, ChevronDown, ChevronUp } from "lucide-react";
 
 interface ScenePreviewProps {
   dimensions: Dimensions;
@@ -20,6 +20,7 @@ interface ScenePreviewProps {
 export default function ScenePreview({ dimensions, walls, openings, showRoof = true, onRoofToggle, showCampers = true, onCampersToggle }: ScenePreviewProps) {
   const [localShowRoof, setLocalShowRoof] = useState(showRoof);
   const [localShowCampers, setLocalShowCampers] = useState(showCampers);
+  const [showHelpText, setShowHelpText] = useState(true);
 
   const handleRoofToggle = () => {
     const newValue = !localShowRoof;
@@ -107,8 +108,21 @@ export default function ScenePreview({ dimensions, walls, openings, showRoof = t
         </Button>
       </div>
       
-      <div className="absolute bottom-4 right-4 bg-zinc-900/80 backdrop-blur p-2 rounded text-xs text-zinc-400 pointer-events-none select-none">
-        Left Click: Rotate • Right Click: Pan • Scroll: Zoom • Campers: Draggable
+      <div className="absolute bottom-4 right-4 flex flex-col gap-2">
+        {showHelpText && (
+          <div className="bg-zinc-900/80 backdrop-blur p-2 rounded text-xs text-zinc-400 pointer-events-none select-none">
+            Left Click: Rotate • Right Click: Pan • Scroll: Zoom • Campers: Draggable
+          </div>
+        )}
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => setShowHelpText(!showHelpText)}
+          className="gap-2 w-fit ml-auto"
+          data-testid="button-toggle-help"
+        >
+          {showHelpText ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+        </Button>
       </div>
     </div>
   );
